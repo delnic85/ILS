@@ -62,15 +62,15 @@
 </head>
 <body class="bg-gray-100 text-brand-gray min-h-screen antialiased">
 
-    <div class="container mx-auto max-w-5xl p-4 md:p-8">
+    <div class="container mx-auto w-full max-w-[98%] p-2 md:p-4">
 
-        <header class="flex items-center justify-center gap-4 mb-8">
+        <header class="flex items-center justify-center gap-4 mb-6">
             <h1 class="text-3xl md:text-5xl font-bold text-brand-orange tracking-tight">
                 Scannerizza Etichetta
             </h1>
         </header>
 
-        <div class="bg-white rounded-2xl shadow-lg p-6 md:p-8 mb-8">
+        <div class="bg-white rounded-2xl shadow-lg p-4 mb-6">
             <div>
                 <label for="search-box" class="sr-only">Cerca Tracking</label>
                 <input type="text" id="search-box" 
@@ -95,7 +95,7 @@
     </div>
 
     <script>
-        // Array con tutti i 12 link degli ordini (dal file "ORDINI TEMU")
+        // Array con tutti i 12 link degli ordini
         const ORDER_SHEET_URLS = [
             'https://docs.google.com/spreadsheets/d/e/2PACX-1vSIRX2of-3t_4Z9U0X8Vy7yBHkaDXkpxqHnb3rP1GrFegKACJMRzKdQQrF2Yx3ZsnsyjZ78xHtS9SqO/pub?gid=0&single=true&output=csv',
             'https://docs.google.com/spreadsheets/d/e/2PACX-1vSIRX2of-3t_4Z9U0X8Vy7yBHkaDXkpxqHnb3rP1GrFegKACJMRzKdQQrF2Yx3ZsnsyjZ78xHtS9SqO/pub?gid=698965104&single=true&output=csv',
@@ -111,8 +111,7 @@
             'https://docs.google.com/spreadsheets/d/e/2PACX-1vSIRX2of-3t_4Z9U0X8Vy7yBHkaDXkpxqHnb3rP1GrFegKACJMRzKdQQrF2Yx3ZsnsyjZ78xHtS9SqO/pub?gid=778059903&single=true&output=csv'
         ];
 
-        // URL Magazzino (dal file "MAGAZZINO INVENTARIO")
-        // Questo link DEVE essere pubblicato sul web
+        // URL Magazzino
         const INVENTORY_CSV_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQLf2HBC2g4q3L-hER7WPpYixWIIqJyV6MAkWm4ENZlQNrLxbroZRP3HBZ7Uzl510OVON8q590_YH_S/pub?gid=938359466&single=true&output=csv';
 
         // Mappatura Colonne ORDINI
@@ -147,7 +146,6 @@
 
             searchBox.addEventListener('input', renderOrders);
             
-            // Listener per il reset del campo con "Invio"
             searchBox.addEventListener('keydown', (event) => {
                 if (event.key === 'Enter' || event.keyCode === 13) {
                     event.preventDefault(); 
@@ -158,7 +156,6 @@
             loadAllData();
         });
 
-        // Funzione di caricamento PARALLELO (veloce, ma richiede che tutti i link siano validi)
         async function loadAllData() {
             try {
                 const fetchPromises = [fetch(INVENTORY_CSV_URL)];
@@ -167,21 +164,17 @@
                     fetchPromises.push(fetch(url));
                 });
 
-                // Usa Promise.allSettled per scaricare tutto in parallelo
                 const results = await Promise.allSettled(fetchPromises);
 
-                // --- 1. Elabora il Magazzino (RISULTATO 0) ---
                 const inventoryResult = results[0];
                 if (inventoryResult.status === 'fulfilled' && inventoryResult.value.ok) {
                     const inventoryCsvText = await inventoryResult.value.text();
                     createInventoryMap(inventoryCsvText);
                 } else {
-                    // Se il Magazzino fallisce, l'app non può funzionare
                     console.error('Caricamento INVENTARIO fallito:', inventoryResult.reason || (inventoryResult.value && inventoryResult.value.statusText));
                     throw new Error('Errore critico: Impossibile caricare il file di inventario. (Link non pubblicato?)');
                 }
                 
-                // --- 2. Elabora tutti i fogli Ordini (dal RISULTATO 1 in poi) ---
                 const allOrdersMap = new Map();
                 let ordersLoadedCount = 0;
 
@@ -194,7 +187,6 @@
                         processOrdersCsv(orderCsvText, allOrdersMap);
                         ordersLoadedCount++;
                     } else {
-                        // Segnala l'errore per quella specifica scheda, ma continua
                         console.warn(`Caricamento foglio ordini fallito: ${sheetUrl}`, orderResult.reason || (orderResult.value && orderResult.value.statusText));
                     }
                 }
@@ -203,11 +195,9 @@
                     throw new Error('Nessun foglio ordini è stato caricato. Controlla i link.');
                 }
 
-                // 3. Assegna il risultato combinato
                 allGroupedOrders = Array.from(allOrdersMap.values());
                 console.log(`Processati ${allGroupedOrders.length} ordini raggruppati da ${ordersLoadedCount} fonti.`);
                 
-                // 4. Renderizza il risultato
                 renderOrders();
                 statusMessage.classList.add('hidden');
 
@@ -236,7 +226,6 @@
                     });
                 }
             });
-            console.log(`Mappa inventario creata con ${inventoryImageMap.size} dati.`);
         }
 
         function processOrdersCsv(csvText, ordersMap) {
@@ -275,6 +264,7 @@
             });
         }
 
+        // --- MODIFICA PRINCIPALE QUI ---
         function renderOrders() {
             const searchTerm = searchBox.value.toLowerCase().trim();
 
@@ -301,55 +291,73 @@
 
             filteredOrders.forEach(order => {
                 const orderCard = document.createElement('div');
-                orderCard.className = 'bg-white rounded-2xl shadow-lg overflow-hidden';
+                orderCard.className = 'bg-white rounded-2xl shadow-lg overflow-hidden mb-6';
                 
                 const headerHtml = `
                     <div class="bg-brand-gray text-white p-4 md:flex justify-between items-center">
                         <div>
-                            <p class="text-sm uppercase tracking-wider">Cliente</p>
-                            <p class="text-lg font-bold">${order.cliente}</p>
+                            <p class="text-sm uppercase tracking-wider opacity-80">Cliente</p>
+                            <p class="text-xl font-bold">${order.cliente}</p>
                         </div>
                         <div class="mt-2 md:mt-0 md:text-right">
-                            <p class="text-sm uppercase tracking-wider">Tracking</p>
-                            <p class="text-lg font-bold text-brand-orange">${order.tracking || 'NON DISPONIBILE'}</p>
+                            <p class="text-sm uppercase tracking-wider opacity-80">Tracking</p>
+                            <p class="text-xl font-bold text-brand-orange">${order.tracking || 'NON DISPONIBILE'}</p>
                         </div>
                     </div>
                 `;
 
+                // Calcola quante colonne usare in base al numero di articoli
+                const itemCount = order.items.length;
+                
+                // Generiamo le "card" per ogni articolo invece delle righe di tabella
                 const itemsHtml = order.items.map(item => {
                     const placeholderImg = `https://placehold.co/150x150/FD991F/white?text=${item.sku[0] || '?'}`;
+                    
                     return `
-                        <tr class="border-b border-gray-200 last:border-b-0">
-                            <td class="p-4 align-middle">
+                        <div class="flex flex-col items-center text-center border-r border-gray-200 last:border-r-0 p-4 relative group">
+                            
+                            <div class="w-full flex justify-center mb-3" style="height: 250px;">
                                 <img src="${item.imageUrl || placeholderImg}" 
-                                     alt="Immagine prodotto"
-                                     class="w-[150px] h-[150px] object-contain rounded-md bg-white border border-gray-200"
+                                     alt="Prodotto"
+                                     class="max-h-full max-w-full object-contain rounded-md"
                                      onerror="this.onerror=null; this.src='${placeholderImg}';">
-                            </td>
-                            <td class="p-4 align-middle">
-                                <p class="font-semibold text-gray-800">${item.articolo}</p>
-                                <p class="text-sm text-brand-orange">${item.sku}</p>
-                                <p class="text-md font-bold text-brand-gray mt-1">Scaffale: ${item.scaffale}</p>
-                                <p class="text-md font-bold text-brand-orange mt-1">Brand: ${item.brand}</p>
-                            </td>
-                            <td class="p-4 text-center align-middle">
-                                <div class="w-12 h-12 bg-brand-orange text-white text-2xl font-bold
-                                            rounded-full flex items-center justify-center mx-auto">
+                            </div>
+
+                            <div class="w-full">
+                                <p class="font-semibold text-gray-800 text-sm md:text-base mb-1 line-clamp-2" title="${item.articolo}">
+                                    ${item.articolo}
+                                </p>
+                                <p class="text-sm text-brand-orange font-bold mb-1 break-all">
+                                    ${item.sku}
+                                </p>
+                                
+                                <div class="flex justify-center gap-3 mt-2 text-sm">
+                                    <span class="bg-gray-100 text-gray-600 px-2 py-1 rounded">
+                                        Brand: <strong>${item.brand}</strong>
+                                    </span>
+                                    <span class="bg-gray-100 text-gray-600 px-2 py-1 rounded">
+                                        Scaffale: <strong>${item.scaffale}</strong>
+                                    </span>
+                                </div>
+                            </div>
+
+                            <div class="mt-4">
+                                <div class="w-16 h-16 bg-brand-orange text-white text-3xl font-bold
+                                            rounded-full flex items-center justify-center shadow-md">
                                     ${item.qty}
                                 </div>
-                            </td>
-                        </tr>
+                            </div>
+                        </div>
                     `;
                 }).join('');
 
+                // Impostiamo la griglia dinamica
+                // repeat(N, 1fr) divide lo spazio in N parti uguali
                 orderCard.innerHTML = `
                     ${headerHtml}
-                    <div class="overflow-x-auto">
-                        <table class="w-full">
-                            <tbody>
-                                ${itemsHtml}
-                            </tbody>
-                        </table>
+                    <div class="grid divide-y md:divide-y-0 divide-gray-200" 
+                         style="grid-template-columns: repeat(${itemCount}, minmax(0, 1fr));">
+                        ${itemsHtml}
                     </div>
                 `;
                 
