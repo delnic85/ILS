@@ -309,37 +309,40 @@
                     const placeholderImg = `https://placehold.co/150x150/FD991F/white?text=${item.sku[0] || '?'}`;
                     
                     return `
-                        <div class="flex flex-col items-center justify-between text-center border-r border-gray-200 last:border-r-0 p-4 h-full">
+                        <div class="flex flex-col text-center p-4 border-r-2 border-brand-gray last:border-r-0">
                             
-                            <div class="w-full flex justify-center mb-3 h-56"> 
-                                <img src="${item.imageUrl || placeholderImg}" 
-                                     alt="Immagine prodotto"
-                                     class="max-h-56 max-w-full object-contain rounded-md" 
-                                     onerror="this.onerror=null; this.src='${placeholderImg}';">
-                            </div>
+                            <p class="font-semibold text-gray-800 text-base md:text-lg mb-3 line-clamp-2" title="${item.articolo}">
+                                ${item.articolo}
+                            </p>
 
-                            <div class="w-full flex-grow flex flex-col justify-center">
-                                <p class="font-semibold text-gray-800 text-sm md:text-base mb-1 line-clamp-2" title="${item.articolo}">
-                                    ${item.articolo}
-                                </p>
-                                <p class="text-sm text-brand-orange font-bold mb-3 break-all">
-                                    ${item.sku}
-                                </p>
-                                
-                                <div class="flex flex-col items-center justify-center gap-1 mt-2 text-base">
-                                    <span class="text-gray-600 font-medium">
-                                        Brand: <strong>${item.brand}</strong>
-                                    </span>
-                                    <span class="text-lg font-bold text-brand-orange">
-                                        Scaffale: ${item.scaffale}
-                                    </span>
+                            <div class="flex items-center justify-center space-x-4 w-full">
+                                <div class="w-36 h-36 flex-shrink-0 flex items-center justify-center">
+                                    <img src="${item.imageUrl || placeholderImg}" 
+                                         alt="Immagine prodotto"
+                                         class="max-h-36 max-w-full object-contain rounded-md" 
+                                         onerror="this.onerror=null; this.src='${placeholderImg}';">
                                 </div>
-                            </div>
 
-                            <div class="mt-4">
-                                <div class="w-20 h-20 bg-brand-orange text-white text-4xl font-bold
-                                            rounded-full flex items-center justify-center shadow-md">
-                                    ${item.qty}
+                                <div class="flex flex-col items-start text-left flex-grow">
+                                    <p class="text-sm text-brand-orange font-bold mb-1 break-all">
+                                        ${item.sku}
+                                    </p>
+                                    
+                                    <div class="flex flex-col gap-0.5 mt-1 text-base">
+                                        <span class="text-gray-600 font-medium">
+                                            Brand: <strong>${item.brand}</strong>
+                                        </span>
+                                        <span class="text-xl font-bold text-brand-orange">
+                                            Scaffale: ${item.scaffale}
+                                        </span>
+                                    </div>
+
+                                    <div class="mt-4 w-full flex justify-center">
+                                        <div class="w-16 h-16 bg-brand-orange text-white text-3xl font-bold
+                                                    rounded-full flex items-center justify-center shadow-md">
+                                            ${item.qty}
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -348,7 +351,7 @@
 
                 orderCard.innerHTML = `
                     ${headerHtml}
-                    <div class="grid divide-y md:divide-y-0 md:divide-x divide-gray-200" 
+                    <div class="grid" 
                          style="grid-template-columns: repeat(${itemCount}, minmax(0, 1fr));">
                         ${itemsHtml}
                     </div>
