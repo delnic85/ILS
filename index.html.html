@@ -1,0 +1,389 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Scannerizza Etichetta - I LOVE SHOPPING</title>
+    
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    
+    <style>
+        /* Stile personalizzato per definire i colori del brand e il font */
+        :root {
+            --brand-orange: #FD991F;
+            --brand-gray: #7A8686;
+        }
+        
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+
+        .text-md{font-size:30px}
+
+        /* Stile per lo spinner di caricamento */
+        .loader {
+            width: 48px;
+            height: 48px;
+            border: 5px solid #FFF;
+            border-bottom-color: var(--brand-orange);
+            border-radius: 50%;
+            display: inline-block;
+            box-sizing: border-box;
+            animation: rotation 1s linear infinite;
+        }
+
+        @keyframes rotation {
+            0% {
+                transform: rotate(0deg);
+            }
+            100% {
+                transform: rotate(360deg);
+            }
+        }
+    </style>
+    
+    <script>
+        // Configurazione Tailwind per i colori personalizzati
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        'brand-orange': 'var(--brand-orange)',
+                        'brand-gray': 'var(--brand-gray)',
+                    }
+                }
+            }
+        }
+    </script>
+</head>
+<body class="bg-gray-100 text-brand-gray min-h-screen antialiased">
+
+    <div class="container mx-auto max-w-5xl p-4 md:p-8">
+
+        <header class="flex items-center justify-center gap-4 mb-8">
+            <h1 class="text-3xl md:text-5xl font-bold text-brand-orange tracking-tight">
+                Scannerizza Etichetta
+            </h1>
+        </header>
+
+        <div class="bg-white rounded-2xl shadow-lg p-6 md:p-8 mb-8">
+            <div>
+                <label for="search-box" class="sr-only">Cerca Tracking</label>
+                <input type="text" id="search-box" 
+                       placeholder="Inserisci il codice di tracking..." 
+                       class="w-full p-4 border border-gray-300 rounded-lg text-lg shadow-sm
+                              focus:outline-none focus:ring-2 focus:ring-brand-orange focus:border-transparent">
+            </div>
+        </div>
+
+        <div class="space-y-6">
+            <div id="status-message" class="p-8 text-center bg-white rounded-2xl shadow-lg">
+                <div class="flex flex-col items-center justify-center space-y-4">
+                    <span class="loader"></span>
+                    <span class="text-gray-500 font-medium">Caricamento ordini e magazzino...</span>
+                </div>
+            </div>
+
+            <div id="orders-container" class="space-y-6">
+                </div>
+        </div>
+
+    </div>
+
+    <script>
+        // Array con tutti i 12 link degli ordini (dal file "ORDINI TEMU")
+        const ORDER_SHEET_URLS = [
+            'https://docs.google.com/spreadsheets/d/e/2PACX-1vSIRX2of-3t_4Z9U0X8Vy7yBHkaDXkpxqHnb3rP1GrFegKACJMRzKdQQrF2Yx3ZsnsyjZ78xHtS9SqO/pub?gid=0&single=true&output=csv',
+            'https://docs.google.com/spreadsheets/d/e/2PACX-1vSIRX2of-3t_4Z9U0X8Vy7yBHkaDXkpxqHnb3rP1GrFegKACJMRzKdQQrF2Yx3ZsnsyjZ78xHtS9SqO/pub?gid=698965104&single=true&output=csv',
+            'https://docs.google.com/spreadsheets/d/e/2PACX-1vSIRX2of-3t_4Z9U0X8Vy7yBHkaDXkpxqHnb3rP1GrFegKACJMRzKdQQrF2Yx3ZsnsyjZ78xHtS9SqO/pub?gid=678087424&single=true&output=csv',
+            'https://docs.google.com/spreadsheets/d/e/2PACX-1vSIRX2of-3t_4Z9U0X8Vy7yBHkaDXkpxqHnb3rP1GrFegKACJMRzKdQQrF2Yx3ZsnsyjZ78xHtS9SqO/pub?gid=1073596300&single=true&output=csv',
+            'https://docs.google.com/spreadsheets/d/e/2PACX-1vSIRX2of-3t_4Z9U0X8Vy7yBHkaDXkpxqHnb3rP1GrFegKACJMRzKdQQrF2Yx3ZsnsyjZ78xHtS9SqO/pub?gid=204641117&single=true&output=csv',
+            'https://docs.google.com/spreadsheets/d/e/2PACX-1vSIRX2of-3t_4Z9U0X8Vy7yBHkaDXkpxqHnb3rP1GrFegKACJMRzKdQQrF2Yx3ZsnsyjZ78xHtS9SqO/pub?gid=230562370&single=true&output=csv',
+            'https://docs.google.com/spreadsheets/d/e/2PACX-1vSIRX2of-3t_4Z9U0X8Vy7yBHkaDXkpxqHnb3rP1GrFegKACJMRzKdQQrF2Yx3ZsnsyjZ78xHtS9SqO/pub?gid=1668688473&single=true&output=csv',
+            'https://docs.google.com/spreadsheets/d/e/2PACX-1vSIRX2of-3t_4Z9U0X8Vy7yBHkaDXkpxqHnb3rP1GrFegKACJMRzKdQQrF2Yx3ZsnsyjZ78xHtS9SqO/pub?gid=1557315334&single=true&output=csv',
+            'https://docs.google.com/spreadsheets/d/e/2PACX-1vSIRX2of-3t_4Z9U0X8Vy7yBHkaDXkpxqHnb3rP1GrFegKACJMRzKdQQrF2Yx3ZsnsyjZ78xHtS9SqO/pub?gid=181417313&single=true&output=csv',
+            'https://docs.google.com/spreadsheets/d/e/2PACX-1vSIRX2of-3t_4Z9U0X8Vy7yBHkaDXkpxqHnb3rP1GrFegKACJMRzKdQQrF2Yx3ZsnsyjZ78xHtS9SqO/pub?gid=1173456993&single=true&output=csv',
+            'https://docs.google.com/spreadsheets/d/e/2PACX-1vSIRX2of-3t_4Z9U0X8Vy7yBHkaDXkpxqHnb3rP1GrFegKACJMRzKdQQrF2Yx3ZsnsyjZ78xHtS9SqO/pub?gid=32943144&single=true&output=csv',
+            'https://docs.google.com/spreadsheets/d/e/2PACX-1vSIRX2of-3t_4Z9U0X8Vy7yBHkaDXkpxqHnb3rP1GrFegKACJMRzKdQQrF2Yx3ZsnsyjZ78xHtS9SqO/pub?gid=778059903&single=true&output=csv'
+        ];
+
+        // URL Magazzino (dal file "MAGAZZINO INVENTARIO")
+        // Questo link DEVE essere pubblicato sul web
+        const INVENTORY_CSV_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQLf2HBC2g4q3L-hER7WPpYixWIIqJyV6MAkWm4ENZlQNrLxbroZRP3HBZ7Uzl510OVON8q590_YH_S/pub?gid=938359466&single=true&output=csv';
+
+        // Mappatura Colonne ORDINI
+        const ORDERS_COLS = {
+            A_ORDINE_ID: 0,
+            H_ARTICOLO: 7,
+            J_SKU_GLS: 9,
+            L_QTY: 11,
+            O_CLIENTE: 14,
+            AH_TRACKING: 33
+        };
+
+        // Mappatura Colonne MAGAZZINO
+        const INVENTORY_COLS = {
+            C_SKU_GLS: 2,
+            F_BRAND: 5, 
+            I_SCAFFALE: 8,
+            AB_IMG_URL: 27
+        };
+
+        // Riferimenti DOM
+        let searchBox, statusMessage, ordersContainer;
+        
+        // Dati
+        let allGroupedOrders = [];
+        let inventoryImageMap = new Map();
+
+        document.addEventListener('DOMContentLoaded', () => {
+            searchBox = document.getElementById('search-box');
+            statusMessage = document.getElementById('status-message');
+            ordersContainer = document.getElementById('orders-container');
+
+            searchBox.addEventListener('input', renderOrders);
+            
+            // Listener per il reset del campo con "Invio"
+            searchBox.addEventListener('keydown', (event) => {
+                if (event.key === 'Enter' || event.keyCode === 13) {
+                    event.preventDefault(); 
+                    searchBox.value = ''; 
+                }
+            });
+            
+            loadAllData();
+        });
+
+        // Funzione di caricamento PARALLELO (veloce, ma richiede che tutti i link siano validi)
+        async function loadAllData() {
+            try {
+                const fetchPromises = [fetch(INVENTORY_CSV_URL)];
+                
+                ORDER_SHEET_URLS.forEach(url => {
+                    fetchPromises.push(fetch(url));
+                });
+
+                // Usa Promise.allSettled per scaricare tutto in parallelo
+                const results = await Promise.allSettled(fetchPromises);
+
+                // --- 1. Elabora il Magazzino (RISULTATO 0) ---
+                const inventoryResult = results[0];
+                if (inventoryResult.status === 'fulfilled' && inventoryResult.value.ok) {
+                    const inventoryCsvText = await inventoryResult.value.text();
+                    createInventoryMap(inventoryCsvText);
+                } else {
+                    // Se il Magazzino fallisce, l'app non può funzionare
+                    console.error('Caricamento INVENTARIO fallito:', inventoryResult.reason || (inventoryResult.value && inventoryResult.value.statusText));
+                    throw new Error('Errore critico: Impossibile caricare il file di inventario. (Link non pubblicato?)');
+                }
+                
+                // --- 2. Elabora tutti i fogli Ordini (dal RISULTATO 1 in poi) ---
+                const allOrdersMap = new Map();
+                let ordersLoadedCount = 0;
+
+                for (let i = 1; i < results.length; i++) {
+                    const orderResult = results[i];
+                    const sheetUrl = ORDER_SHEET_URLS[i-1]; 
+                    
+                    if (orderResult.status === 'fulfilled' && orderResult.value.ok) {
+                        const orderCsvText = await orderResult.value.text();
+                        processOrdersCsv(orderCsvText, allOrdersMap);
+                        ordersLoadedCount++;
+                    } else {
+                        // Segnala l'errore per quella specifica scheda, ma continua
+                        console.warn(`Caricamento foglio ordini fallito: ${sheetUrl}`, orderResult.reason || (orderResult.value && orderResult.value.statusText));
+                    }
+                }
+
+                if (ordersLoadedCount === 0) {
+                    throw new Error('Nessun foglio ordini è stato caricato. Controlla i link.');
+                }
+
+                // 3. Assegna il risultato combinato
+                allGroupedOrders = Array.from(allOrdersMap.values());
+                console.log(`Processati ${allGroupedOrders.length} ordini raggruppati da ${ordersLoadedCount} fonti.`);
+                
+                // 4. Renderizza il risultato
+                renderOrders();
+                statusMessage.classList.add('hidden');
+
+            } catch (error) {
+                console.error('Errore nel caricamento dei dati:', error);
+                statusMessage.innerHTML = `<span class="text-red-600 font-medium">${error.message || 'Impossibile caricare i dati. Riprova più tardi.'}</span>`;
+            }
+        }
+
+        function createInventoryMap(csvText) {
+            const lines = csvText.trim().split('\n');
+            lines.shift();
+
+            lines.forEach(line => {
+                const cols = parseCSVLine(line);
+                const sku = cols[INVENTORY_COLS.C_SKU_GLS];
+                const imageUrl = cols[INVENTORY_COLS.AB_IMG_URL];
+                const scaffale = cols[INVENTORY_COLS.I_SCAFFALE];
+                const brand = cols[INVENTORY_COLS.F_BRAND];
+                
+                if (sku) {
+                    inventoryImageMap.set(sku, { 
+                        imageUrl: imageUrl || '',
+                        scaffale: scaffale || 'N/D',
+                        brand: brand || 'N/D'
+                    });
+                }
+            });
+            console.log(`Mappa inventario creata con ${inventoryImageMap.size} dati.`);
+        }
+
+        function processOrdersCsv(csvText, ordersMap) {
+            const lines = csvText.trim().split('\n');
+            lines.shift(); 
+            
+            lines.forEach(line => {
+                const cols = parseCSVLine(line);
+                const orderId = cols[ORDERS_COLS.A_ORDINE_ID];
+                
+                if (!orderId) return;
+
+                const sku = cols[ORDERS_COLS.J_SKU_GLS] || 'N/D';
+                const inventoryData = inventoryImageMap.get(sku) || { imageUrl: '', scaffale: 'N/D', brand: 'N/D' };
+
+                const item = {
+                    articolo: cols[ORDERS_COLS.H_ARTICOLO] || 'N/D',
+                    sku: sku,
+                    qty: cols[ORDERS_COLS.L_QTY] || '0',
+                    imageUrl: inventoryData.imageUrl,
+                    scaffale: inventoryData.scaffale,
+                    brand: inventoryData.brand
+                };
+
+                if (ordersMap.has(orderId)) {
+                    ordersMap.get(orderId).items.push(item);
+                } else {
+                    const newOrder = {
+                        orderId: orderId,
+                        cliente: cols[ORDERS_COLS.O_CLIENTE] || 'N/D',
+                        tracking: cols[ORDERS_COLS.AH_TRACKING] || 'N/D',
+                        items: [item]
+                    };
+                    ordersMap.set(orderId, newOrder);
+                }
+            });
+        }
+
+        function renderOrders() {
+            const searchTerm = searchBox.value.toLowerCase().trim();
+
+            const filteredOrders = allGroupedOrders.filter(order => {
+                return order.tracking && order.tracking.toLowerCase().includes(searchTerm);
+            });
+
+            ordersContainer.innerHTML = '';
+            statusMessage.classList.add('hidden');
+
+            if (filteredOrders.length === 0) {
+                if (searchTerm.length > 0 && allGroupedOrders.length > 0) {
+                    statusMessage.innerHTML = `<div class="p-8 text-center text-gray-500">Nessun ordine trovato per questo tracking.</div>`;
+                    statusMessage.classList.remove('hidden');
+                } else if (allGroupedOrders.length === 0 && !document.querySelector('.loader')) {
+                    statusMessage.innerHTML = `<div class="p-8 text-center text-gray-500">Nessun ordine da mostrare.</div>`;
+                    statusMessage.classList.remove('hidden');
+                } else if (searchTerm.length === 0) {
+                     statusMessage.innerHTML = `<div class="p-8 text-center text-gray-500">Inserisci un codice di tracking per iniziare.</div>`;
+                     statusMessage.classList.remove('hidden');
+                }
+                return;
+            }
+
+            filteredOrders.forEach(order => {
+                const orderCard = document.createElement('div');
+                orderCard.className = 'bg-white rounded-2xl shadow-lg overflow-hidden';
+                
+                const headerHtml = `
+                    <div class="bg-brand-gray text-white p-4 md:flex justify-between items-center">
+                        <div>
+                            <p class="text-sm uppercase tracking-wider">Cliente</p>
+                            <p class="text-lg font-bold">${order.cliente}</p>
+                        </div>
+                        <div class="mt-2 md:mt-0 md:text-right">
+                            <p class="text-sm uppercase tracking-wider">Tracking</p>
+                            <p class="text-lg font-bold text-brand-orange">${order.tracking || 'NON DISPONIBILE'}</p>
+                        </div>
+                    </div>
+                `;
+
+                const itemsHtml = order.items.map(item => {
+                    const placeholderImg = `https://placehold.co/150x150/FD991F/white?text=${item.sku[0] || '?'}`;
+                    return `
+                        <tr class="border-b border-gray-200 last:border-b-0">
+                            <td class="p-4 align-middle">
+                                <img src="${item.imageUrl || placeholderImg}" 
+                                     alt="Immagine prodotto"
+                                     class="w-[150px] h-[150px] object-contain rounded-md bg-white border border-gray-200"
+                                     onerror="this.onerror=null; this.src='${placeholderImg}';">
+                            </td>
+                            <td class="p-4 align-middle">
+                                <p class="font-semibold text-gray-800">${item.articolo}</p>
+                                <p class="text-sm text-brand-orange">${item.sku}</p>
+                                <p class="text-md font-bold text-brand-gray mt-1">Scaffale: ${item.scaffale}</p>
+                                <p class="text-md font-bold text-brand-orange mt-1">Brand: ${item.brand}</p>
+                            </td>
+                            <td class="p-4 text-center align-middle">
+                                <div class="w-12 h-12 bg-brand-orange text-white text-2xl font-bold
+                                            rounded-full flex items-center justify-center mx-auto">
+                                    ${item.qty}
+                                </div>
+                            </td>
+                        </tr>
+                    `;
+                }).join('');
+
+                orderCard.innerHTML = `
+                    ${headerHtml}
+                    <div class="overflow-x-auto">
+                        <table class="w-full">
+                            <tbody>
+                                ${itemsHtml}
+                            </tbody>
+                        </table>
+                    </div>
+                `;
+                
+                ordersContainer.appendChild(orderCard);
+            });
+        }
+
+        function parseCSVLine(line) {
+            const values = [];
+            let inQuote = false;
+            let currentValue = '';
+
+            for (let i = 0; i < line.length; i++) {
+                const char = line[i];
+
+                if (char === '"') {
+                    if (inQuote && line[i+1] === '"') {
+                        currentValue += '"';
+                        i++; 
+                    } else {
+                        inQuote = !inQuote;
+                    }
+                } else if (char === ',' && !inQuote) {
+                    values.push(currentValue.trim().replace(/^"|"$/g, '')); 
+                    currentValue = '';
+                } else {
+                    currentValue += char;
+                }
+            }
+            values.push(currentValue.trim().replace(/^"|"$/g, ''));
+            return values;
+        }
+
+    </script>
+
+</body>
+</html>
