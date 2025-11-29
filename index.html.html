@@ -249,29 +249,21 @@
 
                 const itemCount = order.items.length;
                 const isSingleItem = itemCount === 1;
+                
+                // CALCOLO COLONNE: Massimo 3 per riga
+                // Se items > 3, il grid automatico andrà a capo
+                const gridCols = Math.min(itemCount, 3);
 
                 const itemsHtml = order.items.map(item => {
                     const placeholderImg = `https://placehold.co/150x150/FD991F/white?text=${item.sku[0] || '?'}`;
                     
-                    // CONFIGURAZIONE STILI DINAMICI
-                    const imgBoxClass = isSingleItem 
-                        ? "w-72 h-72" // Immagine enorme se singolo
-                        : "w-40 h-40"; // Immagine fissa standard se multipli
-
-                    const titleClass = isSingleItem
-                        ? "text-2xl md:text-3xl mb-6"
-                        : "text-base md:text-lg mb-3";
-
-                    const shelfSizeClass = isSingleItem
-                        ? "text-6xl" // Scaffale enorme se singolo
-                        : "text-5xl"; // Scaffale comunque molto grande se multipli
-                    
-                    const detailsContainerClass = isSingleItem
-                        ? "ml-8 gap-4"
-                        : "ml-4 gap-2";
+                    const imgBoxClass = isSingleItem ? "w-72 h-72" : "w-40 h-40";
+                    const titleClass = isSingleItem ? "text-2xl md:text-3xl mb-6" : "text-base md:text-lg mb-3";
+                    const shelfSizeClass = isSingleItem ? "text-6xl" : "text-5xl";
+                    const detailsContainerClass = isSingleItem ? "ml-8 gap-4" : "ml-4 gap-2";
 
                     return `
-                        <div class="flex flex-col p-4 border-r-2 border-brand-gray last:border-r-0 ${isSingleItem ? 'items-center text-center' : ''}">
+                        <div class="bg-white flex flex-col p-4 ${isSingleItem ? 'items-center text-center' : ''}">
                             
                             <p class="font-semibold text-gray-800 line-clamp-2 ${titleClass}" title="${item.articolo}">
                                 ${item.articolo}
@@ -279,7 +271,7 @@
 
                             <div class="flex items-center ${isSingleItem ? 'justify-center' : 'justify-start'} w-full">
                                 
-                                <div class="${imgBoxClass} flex-shrink-0 flex items-center justify-center bg-white rounded-md border border-gray-100 p-1">
+                                <div class="${imgBoxClass} flex-shrink-0 flex items-center justify-center bg-gray-50 rounded-md border border-gray-100 p-1">
                                     <img src="${item.imageUrl || placeholderImg}" 
                                          alt="Prodotto"
                                          class="w-full h-full object-contain" 
@@ -313,10 +305,11 @@
                     `;
                 }).join('');
 
+                // "GAP TRICK": Background container grigio + gap + celle bianche = bordi perfetti
                 orderCard.innerHTML = `
                     ${headerHtml}
-                    <div class="grid divide-y md:divide-y-0 md:divide-x-2 divide-brand-gray" 
-                         style="grid-template-columns: repeat(${itemCount}, minmax(0, 1fr));">
+                    <div class="grid bg-brand-gray gap-[2px] border-2 border-brand-gray" 
+                         style="grid-template-columns: repeat(${gridCols}, minmax(0, 1fr));">
                         ${itemsHtml}
                     </div>
                 `;
