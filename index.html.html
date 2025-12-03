@@ -125,6 +125,9 @@
                 if (event.key === 'Enter' || event.keyCode === 13) {
                     event.preventDefault(); 
                     searchBox.value = ''; 
+                    // Render verrà chiamato automaticamente dall'evento input se il valore cambia, 
+                    // ma se svuotiamo manualmente è meglio chiamarlo per sicurezza o lasciare vuoto
+                    renderOrders();
                 }
             });
             loadAllData();
@@ -219,7 +222,16 @@
         }
 
         function renderOrders() {
-            const searchTerm = searchBox.value.toLowerCase().trim();
+            // --- NUOVA LOGICA DI RICERCA ---
+            let rawInput = searchBox.value.trim();
+            let searchTerm = rawInput.toLowerCase();
+
+            // Se il codice è più lungo di 30 caratteri, prendi solo le ultime 12 cifre
+            if (rawInput.length > 30) {
+                searchTerm = rawInput.slice(-12).toLowerCase();
+            }
+            // --------------------------------
+
             const filteredOrders = allGroupedOrders.filter(order => order.tracking && order.tracking.toLowerCase().includes(searchTerm));
 
             ordersContainer.innerHTML = '';
@@ -251,7 +263,6 @@
                 const isSingleItem = itemCount === 1;
                 
                 // CALCOLO COLONNE: Massimo 3 per riga
-                // Se items > 3, il grid automatico andrà a capo
                 const gridCols = Math.min(itemCount, 3);
 
                 const itemsHtml = order.items.map(item => {
