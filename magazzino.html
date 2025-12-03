@@ -108,15 +108,26 @@
 
     <div class="container mx-auto max-w-7xl p-4 md:p-8">
 
-        <nav class="flex justify-end gap-6 mb-4">
-            <button id="nav-inventory" onclick="showView('inventory')" 
-                    class="text-lg font-semibold text-brand-orange border-b-2 border-brand-orange pb-1 transition-all">
-                Ricerca Magazzino
-            </button>
-            <button id="nav-bestsellers" onclick="showView('bestsellers')" 
-                    class="text-lg font-semibold text-brand-gray hover:text-brand-orange transition-all">
-                BEST SELLERS
-            </button>
+        <nav class="flex flex-col md:flex-row justify-between items-center gap-4 mb-8">
+            
+            <a href="https://delnic85.github.io/ILS/index.html" 
+               class="text-lg font-semibold text-brand-gray hover:text-brand-orange transition-all flex items-center gap-2">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1zm12 0h2a1 1 0 001-1V5a1 1 0 00-1-1h-2a1 1 0 00-1 1v2a1 1 0 001 1zM5 16h2a1 1 0 001-1v-2a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1z" />
+                </svg>
+                Scannerizza etichetta
+            </a>
+
+            <div class="flex gap-6">
+                <button id="nav-inventory" onclick="showView('inventory')" 
+                        class="text-lg font-semibold text-brand-orange border-b-2 border-brand-orange pb-1 transition-all">
+                    Ricerca Magazzino
+                </button>
+                <button id="nav-bestsellers" onclick="showView('bestsellers')" 
+                        class="text-lg font-semibold text-brand-gray hover:text-brand-orange transition-all">
+                    BEST SELLERS
+                </button>
+            </div>
         </nav>
         
         <div id="inventory-view">
@@ -496,7 +507,7 @@
                             <td class="p-3 text-sm text-gray-700">${p.categoria}</td>
                             <td class="p-3 text-2xl font-bold text-gray-900">${p.brand}</td>
                             <td class="p-3 text-3xl font-bold text-center">${p.qty}</td>
-                            <td class="p-3 text-5xl font-bold text-brand-orange">${p.scaffale}</td>
+                            <td class="p-3 text-5xl font-bold text-brand-orange leading-tight break-words max-w-[300px]">${p.scaffale}</td>
                         </tr>
                     `);
 
@@ -525,7 +536,7 @@
                                         </div>
                                         <div class="flex flex-col">
                                             <span class="text-sm text-gray-500 uppercase font-semibold">Scaffale</span>
-                                            <span class="text-5xl font-bold text-brand-orange">${p.scaffale || '-'}</span>
+                                            <span class="text-5xl font-bold text-brand-orange break-words text-center leading-tight">${p.scaffale || '-'}</span>
                                         </div>
                                     </div>
                                 </div>
