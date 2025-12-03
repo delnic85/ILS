@@ -3,24 +3,26 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Scannerizza Etichetta - I LOVE SHOPPING</title>
+    <title>Ricerca Magazzino - I LOVE SHOPPING</title>
     
     <script src="https://cdn.tailwindcss.com"></script>
     
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;900&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     
     <style>
+        /* Stile personalizzato per definire i colori del brand e il font */
         :root {
-            --brand-orange: #FD991F;
-            --brand-gray: #7A8686;
+            --brand-orange: #FD991F; /* Colore arancione primario */
+            --brand-gray: #7A8686; /* Colore grigio secondario */
         }
         
         body {
             font-family: 'Inter', sans-serif;
         }
 
+        /* Stile per lo spinner di caricamento */
         .loader {
             width: 48px;
             height: 48px;
@@ -31,14 +33,65 @@
             box-sizing: border-box;
             animation: rotation 1s linear infinite;
         }
+        .skugls { 
+            width: 150px; 
+            overflow-wrap: break-word; /* Manda a capo il testo */
+            word-break: break-all; /* Evita overflow per SKU lunghi */
+        }
+        
+        /* Stile per il pulsante SKU cliccabile */
+        .sku-button {
+            font-weight: 500;
+            color: var(--brand-orange);
+            text-decoration: none;
+            background: none;
+            border: none;
+            padding: 0;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            /* Aggiunto per la vista card */
+            text-align: left; 
+            width: 100%;
+        }
+        .sku-button:hover {
+            text-decoration: underline;
+            color: #E48A1A; /* Un arancione più scuro per l'hover */
+        }
+
+        /* Stile per il pulsante Gemini */
+        .gemini-button {
+            background-color: var(--brand-orange);
+            color: white;
+            font-weight: 600;
+            padding: 10px 16px;
+            border-radius: 8px;
+            border: none;
+            cursor: pointer;
+            transition: background-color 0.2s ease;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .gemini-button:hover {
+            background-color: #E48A1A;
+        }
+        .gemini-button:disabled {
+            background-color: #fcae4a;
+            cursor: not-allowed;
+        }
 
         @keyframes rotation {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
+            0% {
+                transform: rotate(0deg);
+            }
+            100% {
+                transform: rotate(360deg);
+            }
         }
     </style>
     
     <script>
+        // Configurazione Tailwind per i colori personalizzati
         tailwind.config = {
             theme: {
                 extend: {
@@ -51,300 +104,686 @@
         }
     </script>
 </head>
-<body class="bg-gray-100 text-brand-gray min-h-screen antialiased overflow-x-hidden">
+<body class="bg-gray-100 text-brand-gray min-h-screen antialiased">
 
-    <div class="container mx-auto w-full p-2 md:p-4"> 
+    <div class="container mx-auto max-w-7xl p-4 md:p-8">
 
-        <header class="flex items-center justify-center gap-4 mb-6">
-            <h1 class="text-3xl md:text-5xl font-bold text-brand-orange tracking-tight">
-                Scannerizza Etichetta
-            </h1>
-        </header>
+        <nav class="flex flex-col md:flex-row justify-between items-center gap-4 mb-8">
+            
+            <a href="https://delnic85.github.io/ILS/index.html" 
+               class="text-lg font-semibold text-brand-gray hover:text-brand-orange transition-all flex items-center gap-2">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1zm12 0h2a1 1 0 001-1V5a1 1 0 00-1-1h-2a1 1 0 00-1 1v2a1 1 0 001 1zM5 16h2a1 1 0 001-1v-2a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1z" />
+                </svg>
+                Scannerizza etichetta
+            </a>
 
-        <div class="bg-white rounded-2xl shadow-lg p-4 mb-6">
-            <div>
-                <label for="search-box" class="sr-only">Cerca Tracking</label>
-                <input type="text" id="search-box" 
-                       placeholder="Inserisci il codice di tracking..." 
-                       class="w-full p-4 border border-gray-300 rounded-lg text-lg shadow-sm
-                              focus:outline-none focus:ring-2 focus:ring-brand-orange focus:border-transparent">
+            <div class="flex gap-6">
+                <button id="nav-inventory" onclick="showView('inventory')" 
+                        class="text-lg font-semibold text-brand-orange border-b-2 border-brand-orange pb-1 transition-all">
+                    Ricerca Magazzino
+                </button>
+                <button id="nav-bestsellers" onclick="showView('bestsellers')" 
+                        class="text-lg font-semibold text-brand-gray hover:text-brand-orange transition-all">
+                    BEST SELLERS
+                </button>
             </div>
-        </div>
+        </nav>
+        
+        <div id="inventory-view">
+            <header class="flex items-center justify-center gap-4 mb-8">
+                    <h1 class="text-3xl md:text-5xl font-bold text-brand-orange tracking-tight">
+                        I LOVE SHOPPING
+                    </h1>
+            </header> 
 
-        <div class="space-y-6">
-            <div id="status-message" class="p-8 text-center bg-white rounded-2xl shadow-lg">
+            <div class="bg-white rounded-2xl shadow-lg p-6 md:p-8 mb-8">
+                <div class="mb-8">
+                    <label for="search-box" class="sr-only">Cerca</label>
+                    <input type="text" id="search-box" 
+                            placeholder="Cerca per SKU, nome, categoria, brand..." 
+                            class="w-full p-4 border border-gray-300 rounded-lg text-lg shadow-sm
+                                     focus:outline-none focus:ring-2 focus:ring-brand-orange focus:border-transparent">
+                </div>
+                
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div>
+                        <label for="filter-category" class="block text-sm font-medium text-gray-700 mb-2">Categoria</label>
+                        <select id="filter-category" class="w-full p-3 border border-gray-300 rounded-lg shadow-sm bg-white
+                                                            focus:outline-none focus:ring-2 focus:ring-brand-orange focus:border-transparent">
+                            <option value="">Tutte le categorie</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label for="filter-brand" class="block text-sm font-medium text-gray-700 mb-2">Brand</label>
+                        <select id="filter-brand" class="w-full p-3 border border-gray-300 rounded-lg shadow-sm bg-white
+                                                         focus:outline-none focus:ring-2 focus:ring-brand-orange focus:border-transparent">
+                            <option value="">Tutti i brand</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label for="filter-shelf" class="block text-sm font-medium text-gray-700 mb-2">Scaffale</label>
+                        <select id="filter-shelf" class="w-full p-3 border border-gray-300 rounded-lg shadow-sm bg-white
+                                                         focus:outline-none focus:ring-2 focus:ring-brand-orange focus:border-transparent">
+                            <option value="">Tutti gli scaffali</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+        </div> <div class="bg-white rounded-2xl shadow-lg overflow-hidden">
+            <div id="status-message" class="p-8 text-center">
                 <div class="flex flex-col items-center justify-center space-y-4">
                     <span class="loader"></span>
-                    <span class="text-gray-500 font-medium">Caricamento ordini e magazzino...</span>
+                    <span class="text-gray-500 font-medium">Caricamento dati dal magazzino...</span>
                 </div>
             </div>
 
-            <div id="orders-container" class="space-y-6">
+            <div id="results-container" class="overflow-x-auto hidden md:block">
+                <table class="w-full min-w-max">
+                    <thead class="bg-brand-gray text-white sticky top-0">
+                        <tr>
+                            <th class="p-4 text-left text-sm font-semibold uppercase tracking-wider">Immagine</th>
+                            <th class="p-4 skugls text-left text-sm font-semibold uppercase tracking-wider">SKU GLS</th>
+                            <th class="p-4 text-left text-sm font-semibold uppercase tracking-wider">Categoria</th>
+                            <th class="p-4 text-left text-sm font-semibold uppercase tracking-wider">Brand</th>
+                            <th class="p-4 text-left text-sm font-semibold uppercase tracking-wider">QTY Mag</th>
+                            <th class="p-4 text-left text-sm font-semibold uppercase tracking-wider">Scaffale</th>
+                        </tr>
+                    </thead>
+                    <tbody id="results-table-body" class="divide-y divide-gray-200">
+                        </tbody>
+                </table>
+            </div>
+
+            <div id="results-cards-container" class="block md:hidden">
+                </div>
+            
+        </div> <div id="bestsellers-view" class="hidden">
+            <header class="flex items-center justify-center gap-4 mb-8">
+                <h1 class="text-3xl md:text-5xl font-bold text-brand-orange tracking-tight">
+                    Best Sellers
+                </h1>
+            </header>
+
+            <div class="bg-white rounded-2xl shadow-lg overflow-hidden">
+            
+                <div id="bestsellers-table-container" class="overflow-x-auto hidden md:block">
+                    <table class="w-full min-w-max">
+                        <thead class="bg-brand-gray text-white sticky top-0">
+                            <tr>
+                                <th class="p-4 text-left text-sm font-semibold uppercase tracking-wider">Immagine</th>
+                                <th class="p-4 skugls text-left text-sm font-semibold uppercase tracking-wider">SKU GLS</th>
+                                <th id="th-amazon" onclick="sortBestSellers('amazonQty')" 
+                                    class="p-4 text-left text-sm font-semibold uppercase tracking-wider cursor-pointer hover:bg-opacity-80">
+                                    AMAZON <span id="sort-arrow-amazon"></span>
+                                </th>
+                                <th id="th-temu" onclick="sortBestSellers('temuQty')" 
+                                    class="p-4 text-left text-sm font-semibold uppercase tracking-wider cursor-pointer hover:bg-opacity-80">
+                                    TEMU <span id="sort-arrow-temu"></span>
+                                </th>
+                            </tr>
+                        </thead>
+                        <tbody id="bestsellers-table-body" class="divide-y divide-gray-200">
+                            </tbody>
+                    </table>
+                </div>
+
+                <div id="bestsellers-cards-container" class="block md:hidden">
+                    </div>
+            </div>
+
+        </div> </div>
+
+    <div id="product-modal" class="fixed inset-0 bg-black bg-opacity-60 hidden flex items-center justify-center p-4 z-50">
+        <div class="bg-white rounded-2xl shadow-xl w-full max-w-lg p-6 relative" id="modal-content">
+            <button onclick="closeProductModal()" class="absolute top-4 right-4 text-3xl text-brand-gray hover:text-black">&times;</button>
+            
+            <h2 class="text-2xl font-bold text-brand-orange mb-4">Dettagli Prodotto</h2>
+            
+            <div class="flex flex-col md:flex-row gap-6">
+                <div class="flex-shrink-0">
+                    <img id="modal-img" src="" alt="Immagine prodotto" class="w-[150px] h-[150px] object-contain rounded-lg bg-white">
+                </div>
+                
+                <div class="flex-grow">
+                    <h3 id="modal-sku" class="text-xl font-semibold text-gray-900"></h3>
+                    <p id="modal-details" class="text-md text-brand-gray mt-1"></p>
+                    <p id="modal-stock" class="text-md text-brand-gray mt-1"></p>
+                </div>
+            </div>
+
+            <div class="mt-6 border-t border-gray-200 pt-6">
+                <button id="gemini-generate-btn" class="gemini-button">
+                    ✨ Genera Descrizione Prodotto
+                </button>
+                
+                <div id="gemini-result-container" class="mt-4 bg-gray-50 p-4 rounded-lg min-h-[60px] text-gray-700 text-sm">
+                    </div>
             </div>
         </div>
-
     </div>
 
+
     <script>
-        const ORDER_SHEET_URLS = [
-            'https://docs.google.com/spreadsheets/d/e/2PACX-1vSIRX2of-3t_4Z9U0X8Vy7yBHkaDXkpxqHnb3rP1GrFegKACJMRzKdQQrF2Yx3ZsnsyjZ78xHtS9SqO/pub?gid=0&single=true&output=csv',
-            'https://docs.google.com/spreadsheets/d/e/2PACX-1vSIRX2of-3t_4Z9U0X8Vy7yBHkaDXkpxqHnb3rP1GrFegKACJMRzKdQQrF2Yx3ZsnsyjZ78xHtS9SqO/pub?gid=698965104&single=true&output=csv',
-            'https://docs.google.com/spreadsheets/d/e/2PACX-1vSIRX2of-3t_4Z9U0X8Vy7yBHkaDXkpxqHnb3rP1GrFegKACJMRzKdQQrF2Yx3ZsnsyjZ78xHtS9SqO/pub?gid=678087424&single=true&output=csv',
-            'https://docs.google.com/spreadsheets/d/e/2PACX-1vSIRX2of-3t_4Z9U0X8Vy7yBHkaDXkpxqHnb3rP1GrFegKACJMRzKdQQrF2Yx3ZsnsyjZ78xHtS9SqO/pub?gid=1073596300&single=true&output=csv',
-            'https://docs.google.com/spreadsheets/d/e/2PACX-1vSIRX2of-3t_4Z9U0X8Vy7yBHkaDXkpxqHnb3rP1GrFegKACJMRzKdQQrF2Yx3ZsnsyjZ78xHtS9SqO/pub?gid=204641117&single=true&output=csv',
-            'https://docs.google.com/spreadsheets/d/e/2PACX-1vSIRX2of-3t_4Z9U0X8Vy7yBHkaDXkpxqHnb3rP1GrFegKACJMRzKdQQrF2Yx3ZsnsyjZ78xHtS9SqO/pub?gid=230562370&single=true&output=csv',
-            'https://docs.google.com/spreadsheets/d/e/2PACX-1vSIRX2of-3t_4Z9U0X8Vy7yBHkaDXkpxqHnb3rP1GrFegKACJMRzKdQQrF2Yx3ZsnsyjZ78xHtS9SqO/pub?gid=1668688473&single=true&output=csv',
-            'https://docs.google.com/spreadsheets/d/e/2PACX-1vSIRX2of-3t_4Z9U0X8Vy7yBHkaDXkpxqHnb3rP1GrFegKACJMRzKdQQrF2Yx3ZsnsyjZ78xHtS9SqO/pub?gid=1557315334&single=true&output=csv',
-            'https://docs.google.com/spreadsheets/d/e/2PACX-1vSIRX2of-3t_4Z9U0X8Vy7yBHkaDXkpxqHnb3rP1GrFegKACJMRzKdQQrF2Yx3ZsnsyjZ78xHtS9SqO/pub?gid=181417313&single=true&output=csv',
-            'https://docs.google.com/spreadsheets/d/e/2PACX-1vSIRX2of-3t_4Z9U0X8Vy7yBHkaDXkpxqHnb3rP1GrFegKACJMRzKdQQrF2Yx3ZsnsyjZ78xHtS9SqO/pub?gid=1173456993&single=true&output=csv',
-            'https://docs.google.com/spreadsheets/d/e/2PACX-1vSIRX2of-3t_4Z9U0X8Vy7yBHkaDXkpxqHnb3rP1GrFegKACJMRzKdQQrF2Yx3ZsnsyjZ78xHtS9SqO/pub?gid=32943144&single=true&output=csv',
-            'https://docs.google.com/spreadsheets/d/e/2PACX-1vSIRX2of-3t_4Z9U0X8Vy7yBHkaDXkpxqHnb3rP1GrFegKACJMRzKdQQrF2Yx3ZsnsyjZ78xHtS9SqO/pub?gid=778059903&single=true&output=csv'
-        ];
+        // URL del tuo Google Sheet
+        const CSV_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQLf2HBC2g4q3L-hER7WPpYixWIIqJyV6MAkWm4ENZlQNrLxbroZRP3HBZ7Uzl510OVON8q590_YH_S/pub?gid=938359466&single=true&output=csv';
 
-        const INVENTORY_CSV_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQLf2HBC2g4q3L-hER7WPpYixWIIqJyV6MAkWm4ENZlQNrLxbroZRP3HBZ7Uzl510OVON8q590_YH_S/pub?gid=938359466&single=true&output=csv';
+        // --- Riferimenti agli elementi DOM ---
+        let searchBox, categoryFilter, brandFilter, shelfFilter, statusMessage;
+        let inventoryView, bestsellersView, navInventory, navBestsellers;
+        let thAmazon, thTemu, sortArrowAmazon, sortArrowTemu;
 
-        const ORDERS_COLS = {
-            A_ORDINE_ID: 0, H_ARTICOLO: 7, J_SKU_GLS: 9, L_QTY: 11, O_CLIENTE: 14, AH_TRACKING: 33
+        // --- Elementi Modale ---
+        let productModal, modalContent, modalImg, modalSku, modalDetails, modalStock, geminiGenerateBtn, geminiResultContainer;
+
+        // --- NUOVI Elementi Responsive ---
+        let resultsContainer, tableBody, resultsCardsContainer;
+        let bestsellersTableContainer, bestsellersTableBody, bestsellersCardsContainer;
+
+        // --- API KEY per Gemini ---
+        const apiKey = ""; 
+
+        let allProducts = [];
+        let sortState = { column: 'amazonQty', direction: 'desc' };
+
+        const COLS = {
+            A: 0, B: 1, C_SKU: 2, E_CAT: 4, F_BRAND: 5, H_QTY: 7, I_SCAFFALE: 8,
+            P_AMAZON: 15, R_TEMU: 17, AA: 26, AB_IMG: 27, AJ: 35
         };
-
-        const INVENTORY_COLS = {
-            C_SKU_GLS: 2, F_BRAND: 5, I_SCAFFALE: 8, AB_IMG_URL: 27
-        };
-
-        let searchBox, statusMessage, ordersContainer;
-        let allGroupedOrders = [];
-        let inventoryImageMap = new Map();
 
         document.addEventListener('DOMContentLoaded', () => {
+            
             searchBox = document.getElementById('search-box');
+            categoryFilter = document.getElementById('filter-category');
+            brandFilter = document.getElementById('filter-brand');
+            shelfFilter = document.getElementById('filter-shelf');
             statusMessage = document.getElementById('status-message');
-            ordersContainer = document.getElementById('orders-container');
+            
+            inventoryView = document.getElementById('inventory-view');
+            bestsellersView = document.getElementById('bestsellers-view');
+            navInventory = document.getElementById('nav-inventory');
+            navBestsellers = document.getElementById('nav-bestsellers');
+            
+            thAmazon = document.getElementById('th-amazon');
+            thTemu = document.getElementById('th-temu');
+            sortArrowAmazon = document.getElementById('sort-arrow-amazon');
+            sortArrowTemu = document.getElementById('sort-arrow-temu');
+            
+            productModal = document.getElementById('product-modal');
+            modalContent = document.getElementById('modal-content');
+            modalImg = document.getElementById('modal-img');
+            modalSku = document.getElementById('modal-sku');
+            modalDetails = document.getElementById('modal-details');
+            modalStock = document.getElementById('modal-stock');
+            geminiGenerateBtn = document.getElementById('gemini-generate-btn');
+            geminiResultContainer = document.getElementById('gemini-result-container');
 
-            searchBox.addEventListener('input', renderOrders);
-            searchBox.addEventListener('keydown', (event) => {
-                if (event.key === 'Enter' || event.keyCode === 13) {
-                    event.preventDefault(); 
-                    searchBox.value = ''; 
-                    // Render verrà chiamato automaticamente dall'evento input se il valore cambia, 
-                    // ma se svuotiamo manualmente è meglio chiamarlo per sicurezza o lasciare vuoto
-                    renderOrders();
+            resultsContainer = document.getElementById('results-container');
+            tableBody = document.getElementById('results-table-body');
+            resultsCardsContainer = document.getElementById('results-cards-container');
+            
+            bestsellersTableContainer = document.getElementById('bestsellers-table-container');
+            bestsellersTableBody = document.getElementById('bestsellers-table-body');
+            bestsellersCardsContainer = document.getElementById('bestsellers-cards-container');
+
+            fetchData();
+            
+            searchBox.addEventListener('input', renderTable);
+            categoryFilter.addEventListener('change', renderTable);
+            brandFilter.addEventListener('change', renderTable);
+            shelfFilter.addEventListener('change', renderTable);
+
+            tableBody.addEventListener('click', handleTableClick);
+            resultsCardsContainer.addEventListener('click', handleTableClick);
+            bestsellersTableBody.addEventListener('click', handleTableClick);
+            bestsellersCardsContainer.addEventListener('click', handleTableClick);
+
+            productModal.addEventListener('click', (e) => {
+                if (e.target === productModal) {
+                    closeProductModal();
                 }
             });
-            loadAllData();
         });
 
-        async function loadAllData() {
+        async function fetchData() {
             try {
-                const fetchPromises = [fetch(INVENTORY_CSV_URL)];
-                ORDER_SHEET_URLS.forEach(url => fetchPromises.push(fetch(url)));
-
-                const results = await Promise.allSettled(fetchPromises);
-
-                const inventoryResult = results[0];
-                if (inventoryResult.status === 'fulfilled' && inventoryResult.value.ok) {
-                    const inventoryCsvText = await inventoryResult.value.text();
-                    createInventoryMap(inventoryCsvText);
-                } else {
-                    throw new Error('Errore critico: Impossibile caricare il file di inventario.');
+                const response = await fetch(CSV_URL);
+                if (!response.ok) {
+                    throw new Error(`Errore HTTP: ${response.status}`);
                 }
+                const csvText = await response.text();
+                allProducts = parseCSV(csvText);
                 
-                const allOrdersMap = new Map();
-                let ordersLoadedCount = 0;
-
-                for (let i = 1; i < results.length; i++) {
-                    const orderResult = results[i];
-                    if (orderResult.status === 'fulfilled' && orderResult.value.ok) {
-                        const orderCsvText = await orderResult.value.text();
-                        processOrdersCsv(orderCsvText, allOrdersMap);
-                        ordersLoadedCount++;
-                    }
-                }
-
-                if (ordersLoadedCount === 0) throw new Error('Nessun foglio ordini caricato.');
-
-                allGroupedOrders = Array.from(allOrdersMap.values());
-                renderOrders();
+                populateFilters();
+                renderTable();
+                renderBestSellers(); 
+                
                 statusMessage.classList.add('hidden');
+                showView('inventory');
 
             } catch (error) {
-                console.error(error);
-                statusMessage.innerHTML = `<span class="text-red-600 font-medium">${error.message || 'Errore dati.'}</span>`;
+                console.error('Errore nel caricamento dei dati:', error);
+                statusMessage.innerHTML = `<span class="text-red-600 font-medium">Impossibile caricare i dati dal magazzino. Riprova più tardi.</span>`;
             }
         }
 
-        function createInventoryMap(csvText) {
-            const lines = csvText.trim().split('\n');
-            lines.shift();
-            lines.forEach(line => {
-                const cols = parseCSVLine(line);
-                const sku = cols[INVENTORY_COLS.C_SKU_GLS];
-                if (sku) {
-                    inventoryImageMap.set(sku, { 
-                        imageUrl: cols[INVENTORY_COLS.AB_IMG_URL] || '',
-                        scaffale: cols[INVENTORY_COLS.I_SCAFFALE] || 'N/D',
-                        brand: cols[INVENTORY_COLS.F_BRAND] || 'N/D'
-                    });
-                }
-            });
-        }
-
-        function processOrdersCsv(csvText, ordersMap) {
-            const lines = csvText.trim().split('\n');
+        function parseCSV(text) {
+            const lines = text.trim().split('\n');
             lines.shift(); 
-            lines.forEach(line => {
+            
+            const products = lines.map(line => {
                 const cols = parseCSVLine(line);
-                const orderId = cols[ORDERS_COLS.A_ORDINE_ID];
-                if (!orderId) return;
-
-                const sku = cols[ORDERS_COLS.J_SKU_GLS] || 'N/D';
-                const inv = inventoryImageMap.get(sku) || { imageUrl: '', scaffale: 'N/D', brand: 'N/D' };
-
-                const item = {
-                    articolo: cols[ORDERS_COLS.H_ARTICOLO] || 'N/D',
-                    sku: sku,
-                    qty: cols[ORDERS_COLS.L_QTY] || '0',
-                    imageUrl: inv.imageUrl,
-                    scaffale: inv.scaffale,
-                    brand: inv.brand
+                return {
+                    sku: cols[COLS.C_SKU] || '',
+                    immagine: cols[COLS.AB_IMG] || '',
+                    categoria: cols[COLS.E_CAT] || '',
+                    brand: cols[COLS.F_BRAND] || '',
+                    qty: cols[COLS.H_QTY] || '0',
+                    scaffale: cols[COLS.I_SCAFFALE] || '',
+                    amazonQty: parseInt(cols[COLS.P_AMAZON] || '0') || 0,
+                    temuQty: parseInt(cols[COLS.R_TEMU] || '0') || 0,
+                    searchData: [
+                        cols[COLS.A], cols[COLS.B], cols[COLS.C_SKU], cols[COLS.E_CAT], 
+                        cols[COLS.F_BRAND], cols[COLS.AA], cols[COLS.AJ]
+                    ].join(' ').toLowerCase()
                 };
+            }).filter(p => p.sku); 
 
-                if (ordersMap.has(orderId)) {
-                    ordersMap.get(orderId).items.push(item);
-                } else {
-                    ordersMap.set(orderId, {
-                        orderId: orderId,
-                        cliente: cols[ORDERS_COLS.O_CLIENTE] || 'N/D',
-                        tracking: cols[ORDERS_COLS.AH_TRACKING] || 'N/D',
-                        items: [item]
-                    });
-                }
-            });
-        }
-
-        function renderOrders() {
-            // --- NUOVA LOGICA DI RICERCA ---
-            let rawInput = searchBox.value.trim();
-            let searchTerm = rawInput.toLowerCase();
-
-            // Se il codice è più lungo di 30 caratteri, prendi solo le ultime 12 cifre
-            if (rawInput.length > 30) {
-                searchTerm = rawInput.slice(-12).toLowerCase();
-            }
-            // --------------------------------
-
-            const filteredOrders = allGroupedOrders.filter(order => order.tracking && order.tracking.toLowerCase().includes(searchTerm));
-
-            ordersContainer.innerHTML = '';
-            statusMessage.classList.add('hidden');
-
-            if (filteredOrders.length === 0) {
-                if (searchTerm.length > 0) {
-                    statusMessage.innerHTML = `<div class="p-8 text-center text-gray-500">Nessun ordine trovato.</div>`;
-                    statusMessage.classList.remove('hidden');
-                } else if (!document.querySelector('.loader')) {
-                    statusMessage.innerHTML = `<div class="p-8 text-center text-gray-500">Inserisci un codice.</div>`;
-                    statusMessage.classList.remove('hidden');
-                }
-                return;
-            }
-
-            filteredOrders.forEach(order => {
-                const orderCard = document.createElement('div');
-                orderCard.className = 'bg-white rounded-2xl shadow-lg overflow-hidden mb-6';
-                
-                const headerHtml = `
-                    <div class="bg-brand-gray text-white p-4 md:flex justify-between items-center">
-                        <div><p class="text-sm uppercase opacity-80">Cliente</p><p class="text-xl font-bold">${order.cliente}</p></div>
-                        <div class="mt-2 md:mt-0 md:text-right"><p class="text-sm uppercase opacity-80">Tracking</p><p class="text-xl font-bold text-brand-orange">${order.tracking || 'N/D'}</p></div>
-                    </div>
-                `;
-
-                const itemCount = order.items.length;
-                const isSingleItem = itemCount === 1;
-                
-                // CALCOLO COLONNE: Massimo 3 per riga
-                const gridCols = Math.min(itemCount, 3);
-
-                const itemsHtml = order.items.map(item => {
-                    const placeholderImg = `https://placehold.co/150x150/FD991F/white?text=${item.sku[0] || '?'}`;
-                    
-                    const imgBoxClass = isSingleItem ? "w-72 h-72" : "w-40 h-40";
-                    const titleClass = isSingleItem ? "text-2xl md:text-3xl mb-6" : "text-base md:text-lg mb-3";
-                    const shelfSizeClass = isSingleItem ? "text-6xl" : "text-5xl";
-                    const detailsContainerClass = isSingleItem ? "ml-8 gap-4" : "ml-4 gap-2";
-
-                    return `
-                        <div class="bg-white flex flex-col p-4 ${isSingleItem ? 'items-center text-center' : ''}">
-                            
-                            <p class="font-semibold text-gray-800 line-clamp-2 ${titleClass}" title="${item.articolo}">
-                                ${item.articolo}
-                            </p>
-
-                            <div class="flex items-center ${isSingleItem ? 'justify-center' : 'justify-start'} w-full">
-                                
-                                <div class="${imgBoxClass} flex-shrink-0 flex items-center justify-center bg-gray-50 rounded-md border border-gray-100 p-1">
-                                    <img src="${item.imageUrl || placeholderImg}" 
-                                         alt="Prodotto"
-                                         class="w-full h-full object-contain" 
-                                         onerror="this.onerror=null; this.src='${placeholderImg}';">
-                                </div>
-
-                                <div class="flex flex-col items-start text-left flex-grow ${detailsContainerClass}">
-                                    
-                                    <p class="text-sm text-brand-orange font-bold break-all">
-                                        ${item.sku}
-                                    </p>
-                                    
-                                    <div class="flex items-baseline gap-4 mt-1">
-                                        <span class="text-gray-600 font-medium text-lg">
-                                            ${item.brand}
-                                        </span>
-                                        <span class="${shelfSizeClass} font-black text-brand-orange leading-none">
-                                            ${item.scaffale}
-                                        </span>
-                                    </div>
-
-                                    <div class="mt-3">
-                                        <div class="w-16 h-16 bg-brand-orange text-white text-3xl font-bold
-                                                    rounded-full flex items-center justify-center shadow-md">
-                                            ${item.qty}
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    `;
-                }).join('');
-
-                // "GAP TRICK": Background container grigio + gap + celle bianche = bordi perfetti
-                orderCard.innerHTML = `
-                    ${headerHtml}
-                    <div class="grid bg-brand-gray gap-[2px] border-2 border-brand-gray" 
-                         style="grid-template-columns: repeat(${gridCols}, minmax(0, 1fr));">
-                        ${itemsHtml}
-                    </div>
-                `;
-                
-                ordersContainer.appendChild(orderCard);
-            });
+            return products;
         }
 
         function parseCSVLine(line) {
             const values = [];
             let inQuote = false;
             let currentValue = '';
+
             for (let i = 0; i < line.length; i++) {
                 const char = line[i];
                 if (char === '"') {
-                    if (inQuote && line[i+1] === '"') { currentValue += '"'; i++; } 
-                    else { inQuote = !inQuote; }
+                    if (inQuote && line[i+1] === '"') {
+                        currentValue += '"';
+                        i++; 
+                    } else {
+                        inQuote = !inQuote;
+                    }
                 } else if (char === ',' && !inQuote) {
-                    values.push(currentValue.trim().replace(/^"|"$/g, '')); currentValue = '';
-                } else { currentValue += char; }
+                    values.push(currentValue.trim().replace(/^"|"$/g, ''));
+                    currentValue = '';
+                } else {
+                    currentValue += char;
+                }
             }
             values.push(currentValue.trim().replace(/^"|"$/g, ''));
             return values;
         }
+
+        function populateFilters() {
+            const categories = new Set();
+            const brands = new Set();
+            const shelves = new Set();
+
+            allProducts.forEach(p => {
+                if (p.categoria) categories.add(p.categoria);
+                if (p.brand) brands.add(p.brand);
+                if (p.scaffale) shelves.add(p.scaffale);
+            });
+
+            const fillSelect = (selectEl, items) => {
+                if (!selectEl) return;
+                const sortedItems = [...items].sort((a, b) => a.localeCompare(b));
+                sortedItems.forEach(item => {
+                    const option = document.createElement('option');
+                    option.value = item;
+                    option.textContent = item;
+                    selectEl.appendChild(option);
+                });
+            };
+
+            fillSelect(categoryFilter, categories);
+            fillSelect(brandFilter, brands);
+            fillSelect(shelfFilter, shelves);
+        }
+
+        // ==============================================
+        // LOGICA RENDERIZZAZIONE RICERCA (MODIFICATA)
+        // ==============================================
+        function renderTable() {
+            if (!searchBox || !tableBody || !statusMessage || !resultsContainer) return;
+
+            const searchTerm = searchBox.value.toLowerCase().trim();
+            const keywords = searchTerm.split(' ').filter(k => k);
+            const selectedCategory = categoryFilter.value;
+            const selectedBrand = brandFilter.value;
+            const selectedShelf = shelfFilter.value;
+
+            let filteredProducts = allProducts.filter(p => {
+                const catMatch = !selectedCategory || p.categoria === selectedCategory;
+                const brandMatch = !selectedBrand || p.brand === selectedBrand;
+                const shelfMatch = !selectedShelf || p.scaffale === selectedShelf;
+                return catMatch && brandMatch && shelfMatch;
+            });
+
+            if (keywords.length > 0) {
+                filteredProducts = filteredProducts.filter(p => {
+                    return keywords.every(keyword => p.searchData.includes(keyword));
+                });
+            }
+            
+            tableBody.innerHTML = '';
+            resultsCardsContainer.innerHTML = ''; 
+
+            if (filteredProducts.length === 0) {
+                if (!statusMessage.classList.contains('hidden')) statusMessage.classList.add('hidden'); 
+                resultsContainer.classList.add('hidden');
+                resultsCardsContainer.classList.add('hidden');
+                statusMessage.innerHTML = `<div class="p-8 text-center text-gray-500">Nessun prodotto trovato.</div>`;
+                statusMessage.classList.remove('hidden');
+            } else {
+                statusMessage.classList.add('hidden');
+                resultsContainer.classList.remove('hidden');
+                resultsCardsContainer.classList.remove('hidden');
+
+                const isSingleResult = filteredProducts.length === 1;
+
+                let tableRowsHtml = [];
+                let cardsHtml = [];
+
+                filteredProducts.forEach(p => {
+                    const placeholderImg = `https://placehold.co/150x150/FD991F/white?text=${p.sku[0] || '?'}`;
+                    const placeholderImgMobile = `https://placehold.co/300x300/FD991F/white?text=${p.sku[0] || '?'}`; 
+
+                    // --- HTML per la TABELLA (Desktop - MODIFICATO CON TESTI GRANDI) ---
+                    tableRowsHtml.push(`
+                        <tr class="hover:bg-gray-50 transition-colors">
+                            <td class="p-3">
+                                <img src="${p.immagine || placeholderImg}" 
+                                     alt="Immagine prodotto"
+                                     class="w-[150px] h-[150px] object-contain rounded-md shadow-sm bg-white"
+                                     onerror="this.onerror=null; this.src='${placeholderImg}';">
+                            </td>
+                            <td class="p-3 skugls">
+                                <button class="sku-button" data-sku="${p.sku}">${p.sku}</button>
+                            </td>
+                            <td class="p-3 text-sm text-gray-700">${p.categoria}</td>
+                            <td class="p-3 text-2xl font-bold text-gray-900">${p.brand}</td>
+                            <td class="p-3 text-3xl font-bold text-center">${p.qty}</td>
+                            <td class="p-3 text-5xl font-bold text-brand-orange">${p.scaffale}</td>
+                        </tr>
+                    `);
+
+                    // --- HTML per la CARD MOBILE ---
+                    if (isSingleResult) {
+                        // LAYOUT RISULTATO SINGOLO (Gigante)
+                        cardsHtml.push(`
+                            <div class="p-6 flex flex-col items-center text-center space-y-6">
+                                <div class="w-full bg-white rounded-xl shadow-sm border border-gray-100 p-4">
+                                    <img src="${p.immagine || placeholderImgMobile}" 
+                                         alt="Immagine prodotto"
+                                         class="w-full max-w-[300px] mx-auto object-contain"
+                                         onerror="this.onerror=null; this.src='${placeholderImgMobile}';">
+                                </div>
+                                
+                                <div class="w-full">
+                                    <button class="sku-button w-full text-center" data-sku="${p.sku}">
+                                        <h2 class="text-3xl font-bold text-brand-orange break-all">${p.sku}</h2>
+                                    </button>
+                                    <p class="text-xl font-medium text-gray-900 mt-2">${p.brand}</p>
+                                    
+                                    <div class="mt-6 grid grid-cols-2 gap-4 bg-gray-50 rounded-xl p-4 border border-gray-200">
+                                        <div class="flex flex-col">
+                                            <span class="text-sm text-gray-500 uppercase font-semibold">Quantità</span>
+                                            <span class="text-3xl font-bold text-gray-900">${p.qty}</span>
+                                        </div>
+                                        <div class="flex flex-col">
+                                            <span class="text-sm text-gray-500 uppercase font-semibold">Scaffale</span>
+                                            <span class="text-5xl font-bold text-brand-orange">${p.scaffale || '-'}</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        `);
+                    } else {
+                        // LAYOUT LISTA STANDARD
+                        cardsHtml.push(`
+                            <div class="flex p-4 border-b border-gray-200 last:border-b-0">
+                                <div class="flex-shrink-0 w-[120px] h-[120px] bg-white rounded-md border border-gray-100 flex items-center justify-center p-1">
+                                    <img src="${p.immagine || placeholderImg}" 
+                                         alt="Immagine"
+                                         class="w-full h-full object-contain"
+                                         onerror="this.onerror=null; this.src='${placeholderImg}';">
+                                </div>
+                                
+                                <div class="ml-4 flex-grow flex flex-col justify-center min-w-0">
+                                    <button class="sku-button" data-sku="${p.sku}">
+                                        <h3 class="text-lg font-bold text-brand-orange truncate">${p.sku}</h3>
+                                    </button>
+                                    <p class="text-sm font-medium text-gray-900 truncate">${p.brand}</p>
+                                    <p class="text-base font-semibold text-gray-800 mt-1">QTY: ${p.qty}</p>
+                                    <p class="text-2xl font-bold text-gray-700 mt-1">Scaff: ${p.scaffale || '-'}</p>
+                                </div>
+                            </div>
+                        `);
+                    }
+                });
+                
+                tableBody.innerHTML = tableRowsHtml.join('');
+                resultsCardsContainer.innerHTML = cardsHtml.join('');
+            }
+        }
+
+        function showView(viewName) {
+            if (!inventoryView || !bestsellersView || !navInventory || !navBestsellers) return;
+
+            if (viewName === 'inventory') {
+                inventoryView.classList.remove('hidden');
+                bestsellersView.classList.add('hidden');
+                document.getElementById('results-container').parentElement.classList.remove('hidden');
+                navInventory.className = 'text-lg font-semibold text-brand-orange border-b-2 border-brand-orange pb-1 transition-all';
+                navBestsellers.className = 'text-lg font-semibold text-brand-gray hover:text-brand-orange transition-all';
+
+            } else if (viewName === 'bestsellers') {
+                inventoryView.classList.add('hidden');
+                bestsellersView.classList.remove('hidden');
+                document.getElementById('results-container').parentElement.classList.add('hidden');
+                if(statusMessage) statusMessage.classList.add('hidden');
+                navInventory.className = 'text-lg font-semibold text-brand-gray hover:text-brand-orange transition-all';
+                navBestsellers.className = 'text-lg font-semibold text-brand-orange border-b-2 border-brand-orange pb-1 transition-all';
+                renderBestSellers();
+            }
+        }
+
+        function sortBestSellers(column) {
+            if (sortState.column === column) {
+                sortState.direction = sortState.direction === 'asc' ? 'desc' : 'asc';
+            } else {
+                sortState.column = column;
+                sortState.direction = 'desc';
+            }
+            renderBestSellers();
+        }
+
+        function renderBestSellers() {
+            if (!bestsellersTableBody || !sortArrowAmazon || !sortArrowTemu) return;
+            
+            const bestSellersData = allProducts.filter(p => p.amazonQty > 0 || p.temuQty > 0);
+
+            bestSellersData.sort((a, b) => {
+                const valA = a[sortState.column];
+                const valB = b[sortState.column];
+                return (sortState.direction === 'asc') ? (valA - valB) : (valB - valA);
+            });
+
+            sortArrowAmazon.textContent = '';
+            sortArrowTemu.textContent = '';
+            const arrow = sortState.direction === 'asc' ? ' ↑' : ' ↓';
+            if (sortState.column === 'amazonQty') {
+                sortArrowAmazon.textContent = arrow;
+            } else {
+                sortArrowTemu.textContent = arrow;
+            }
+
+            bestsellersTableBody.innerHTML = '';
+            bestsellersCardsContainer.innerHTML = '';
+            
+            if (bestSellersData.length === 0) {
+                 bestsellersTableBody.innerHTML = `<tr><td colspan="4" class="p-8 text-center text-gray-500">Nessun dato Best Seller trovato.</td></tr>`;
+                 bestsellersCardsContainer.innerHTML = `<div class="p-8 text-center text-gray-500">Nessun dato Best Seller trovato.</div>`;
+                 bestsellersTableContainer.classList.remove('hidden');
+                 bestsellersCardsContainer.classList.remove('hidden');
+                 return;
+            }
+
+            bestsellersTableContainer.classList.remove('hidden');
+            bestsellersCardsContainer.classList.remove('hidden');
+
+            let tableRowsHtml = [];
+            let cardsHtml = [];
+
+            bestSellersData.forEach(p => {
+                const placeholderImg = `https://placehold.co/150x150/FD991F/white?text=${p.sku[0] || '?'}`;
+                
+                // Desktop
+                tableRowsHtml.push(`
+                    <tr class="hover:bg-gray-50 transition-colors">
+                        <td class="p-3">
+                            <img src="${p.immagine || placeholderImg}" 
+                                 alt="Immagine"
+                                 class="w-[150px] h-[150px] object-contain rounded-md shadow-sm bg-white"
+                                 onerror="this.onerror=null; this.src='${placeholderImg}';">
+                        </td>
+                        <td class="p-3 skugls">
+                            <button class="sku-button" data-sku="${p.sku}">${p.sku}</button>
+                        </td>
+                        <td class="p-3 text-lg font-semibold text-center">${p.amazonQty}</td>
+                        <td class="p-3 text-lg font-semibold text-center">${p.temuQty}</td>
+                    </tr>
+                `);
+
+                // Mobile Card
+                cardsHtml.push(`
+                    <div class="flex p-4 border-b border-gray-200 last:border-b-0">
+                        <div class="flex-shrink-0 w-[120px] h-[120px] bg-white rounded-md border border-gray-100 flex items-center justify-center p-1">
+                            <img src="${p.immagine || placeholderImg}" 
+                                 alt="Immagine"
+                                 class="w-full h-full object-contain"
+                                 onerror="this.onerror=null; this.src='${placeholderImg}';">
+                        </div>
+                        
+                        <div class="ml-4 flex-grow flex flex-col justify-center min-w-0">
+                            <button class="sku-button" data-sku="${p.sku}">
+                                <h3 class="text-lg font-bold text-brand-orange truncate">${p.sku}</h3>
+                            </button>
+                            <p class="text-sm font-medium text-gray-900 truncate">${p.brand}</p>
+                            <p class="text-base font-semibold text-gray-800 mt-1">Amazon: ${p.amazonQty}</p>
+                            <p class="text-base font-semibold text-gray-800">Temu: ${p.temuQty}</p>
+                        </div>
+                    </div>
+                `);
+            });
+            
+            bestsellersTableBody.innerHTML = tableRowsHtml.join('');
+            bestsellersCardsContainer.innerHTML = cardsHtml.join('');
+        }
+
+        function handleTableClick(event) {
+            const button = event.target.closest('.sku-button');
+            if (button) {
+                const sku = button.dataset.sku;
+                openProductModal(sku);
+            }
+        }
+
+        function openProductModal(sku) {
+            const product = allProducts.find(p => p.sku === sku);
+            if (!product) return;
+
+            const placeholderImg = `https://placehold.co/150x150/FD991F/white?text=${product.sku[0] || '?'}`;
+            
+            modalImg.src = product.immagine || placeholderImg;
+            modalImg.onerror = () => { modalImg.src = placeholderImg; };
+            modalSku.textContent = product.sku;
+            modalDetails.textContent = `Brand: ${product.brand || 'N/D'} | Categoria: ${product.categoria || 'N/D'}`;
+            
+            if (product.amazonQty > 0 || product.temuQty > 0) {
+                 modalStock.textContent = `Vendite Amazon: ${product.amazonQty} | Vendite Temu: ${product.temuQty}`;
+            } else {
+                 modalStock.textContent = `Quantità in Magazzino: ${product.qty} | Scaffale: ${product.scaffale || 'N/D'}`;
+            }
+
+            geminiResultContainer.innerHTML = 'Clicca il pulsante per generare una descrizione...';
+            geminiGenerateBtn.disabled = false;
+            geminiGenerateBtn.textContent = '✨ Genera Descrizione Prodotto';
+            geminiGenerateBtn.onclick = () => callGeminiForProduct(product);
+
+            productModal.classList.remove('hidden');
+        }
+
+        function closeProductModal() {
+            productModal.classList.add('hidden');
+        }
+
+        async function callGeminiForProduct(product) {
+            geminiGenerateBtn.disabled = true;
+            geminiResultContainer.innerHTML = `<div class="flex justify-center items-center"><span class="loader"></span></div>`;
+
+            const systemPrompt = "Sei un esperto di marketing e-commerce. Il tuo compito è scrivere descrizioni di prodotto accattivanti, brevi (massimo 3 frasi) e focalizzate sui benefici per il cliente. Usa un tono entusiasta ma professionale. Rispondi solo con la descrizione generata.";
+            const userQuery = `Genera una descrizione per questo prodotto:\n- Brand: ${product.brand}\n- Categoria: ${product.categoria}\n- SKU: ${product.sku}`;
+
+            const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`;
+
+            const payload = {
+                contents: [{ parts: [{ text: userQuery }] }],
+                systemInstruction: { parts: [{ text: systemPrompt }] },
+            };
+
+            try {
+                const response = await fetchWithRetry(apiUrl, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+
+                if (!response.ok) {
+                    throw new Error(`Errore API: ${response.statusText}`);
+                }
+
+                const result = await response.json();
+                const text = result.candidates?.[0]?.content?.parts?.[0]?.text;
+
+                if (text) {
+                    geminiResultContainer.innerHTML = `<p>${text.replace(/\n/g, '<br>')}</p>`;
+                } else {
+                    throw new Error("Nessun testo generato.");
+                }
+
+            } catch (error) {
+                console.error('Errore chiamata Gemini:', error);
+                geminiResultContainer.innerHTML = `<p class="text-red-600">Errore: Impossibile generare la descrizione. Riprova.</p>`;
+                geminiGenerateBtn.disabled = false;
+            }
+        }
+
+        async function fetchWithRetry(url, options, retries = 3, delay = 1000) {
+            try {
+                const response = await fetch(url, options);
+                if (!response.ok && retries > 0) {
+                    if (response.status >= 500 && response.status <= 599) {
+                        throw new Error(`Errore server (ritento...): ${response.status}`);
+                    } else {
+                        return response; 
+                    }
+                }
+                return response;
+            } catch (error) {
+                if (retries > 0) {
+                    await new Promise(res => setTimeout(res, delay));
+                    return fetchWithRetry(url, options, retries - 1, delay * 2);
+                } else {
+                    throw error;
+                }
+            }
+        }
     </script>
+
 </body>
 </html>
