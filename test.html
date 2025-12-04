@@ -129,13 +129,18 @@
             ordersContainer = document.getElementById('orders-container');
 
             searchBox.addEventListener('input', renderOrders);
+            
+            // --- CORREZIONE BUG SCANNER ---
             searchBox.addEventListener('keydown', (event) => {
                 if (event.key === 'Enter' || event.keyCode === 13) {
                     event.preventDefault(); 
-                    searchBox.value = ''; 
-                    renderOrders();
+                    // INVECE DI CANCELLARE (che nascondeva i risultati), SELEZIONIAMO IL TESTO.
+                    // Il prossimo scan sovrascriverà automaticamente il testo selezionato.
+                    searchBox.select();
                 }
             });
+            // ------------------------------
+            
             loadAllData();
         });
 
@@ -228,15 +233,13 @@
         }
 
         function renderOrders() {
-            // --- NUOVA LOGICA DI RICERCA ---
             let rawInput = searchBox.value.trim();
             let searchTerm = rawInput.toLowerCase();
 
-            // Se il codice è più lungo di 30 caratteri, prendi solo le ultime 12 cifre
+            // Logica per codici lunghi (> 30 char)
             if (rawInput.length > 30) {
                 searchTerm = rawInput.slice(-12).toLowerCase();
             }
-            // --------------------------------
 
             const filteredOrders = allGroupedOrders.filter(order => order.tracking && order.tracking.toLowerCase().includes(searchTerm));
 
@@ -267,8 +270,6 @@
 
                 const itemCount = order.items.length;
                 const isSingleItem = itemCount === 1;
-                
-                // CALCOLO COLONNE: Massimo 3 per riga
                 const gridCols = Math.min(itemCount, 3);
 
                 const itemsHtml = order.items.map(item => {
@@ -322,7 +323,6 @@
                     `;
                 }).join('');
 
-                // "GAP TRICK": Background container grigio + gap + celle bianche = bordi perfetti
                 orderCard.innerHTML = `
                     ${headerHtml}
                     <div class="grid bg-brand-gray gap-[2px] border-2 border-brand-gray" 
