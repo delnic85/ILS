@@ -55,10 +55,18 @@
 
     <div class="container mx-auto w-full p-2 md:p-4"> 
 
-        <header class="flex items-center justify-center gap-4 mb-6">
+        <header class="relative flex items-center justify-center mb-8">
             <h1 class="text-3xl md:text-5xl font-bold text-brand-orange tracking-tight">
                 Scannerizza Etichetta
             </h1>
+
+            <a href="https://delnic85.github.io/ILS/magazzino.html" 
+               class="absolute right-0 top-1/2 -translate-y-1/2 flex items-center gap-1 text-brand-gray hover:text-brand-orange font-semibold transition-colors duration-200 group">
+                <span>Magazzino</span>
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-5 h-5 group-hover:translate-x-1 transition-transform">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M13.5 4.5 21 12m0 0-7.5 7.5M21 12H3" />
+                </svg>
+            </a>
         </header>
 
         <div class="bg-white rounded-2xl shadow-lg p-4 mb-6">
@@ -121,12 +129,18 @@
             ordersContainer = document.getElementById('orders-container');
 
             searchBox.addEventListener('input', renderOrders);
+            
+            // --- CORREZIONE BUG SCANNER ---
             searchBox.addEventListener('keydown', (event) => {
                 if (event.key === 'Enter' || event.keyCode === 13) {
                     event.preventDefault(); 
-                    searchBox.value = ''; 
+                    // INVECE DI CANCELLARE (che nascondeva i risultati), SELEZIONIAMO IL TESTO.
+                    // Il prossimo scan sovrascriverà automaticamente il testo selezionato.
+                    searchBox.select();
                 }
             });
+            // ------------------------------
+            
             loadAllData();
         });
 
@@ -219,7 +233,14 @@
         }
 
         function renderOrders() {
-            const searchTerm = searchBox.value.toLowerCase().trim();
+            let rawInput = searchBox.value.trim();
+            let searchTerm = rawInput.toLowerCase();
+
+            // Logica per codici lunghi (> 30 char)
+            if (rawInput.length > 30) {
+                searchTerm = rawInput.slice(-12).toLowerCase();
+            }
+
             const filteredOrders = allGroupedOrders.filter(order => order.tracking && order.tracking.toLowerCase().includes(searchTerm));
 
             ordersContainer.innerHTML = '';
@@ -249,9 +270,6 @@
 
                 const itemCount = order.items.length;
                 const isSingleItem = itemCount === 1;
-                
-                // CALCOLO COLONNE: Massimo 3 per riga
-                // Se items > 3, il grid automatico andrà a capo
                 const gridCols = Math.min(itemCount, 3);
 
                 const itemsHtml = order.items.map(item => {
@@ -305,7 +323,6 @@
                     `;
                 }).join('');
 
-                // "GAP TRICK": Background container grigio + gap + celle bianche = bordi perfetti
                 orderCard.innerHTML = `
                     ${headerHtml}
                     <div class="grid bg-brand-gray gap-[2px] border-2 border-brand-gray" 
