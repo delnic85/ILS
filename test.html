@@ -1,0 +1,356 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Scannerizza Etichetta - I LOVE SHOPPING</title>
+    
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;900&display=swap" rel="stylesheet">
+    
+    <style>
+        :root {
+            --brand-orange: #FD991F;
+            --brand-gray: #7A8686;
+        }
+        
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+
+        .loader {
+            width: 48px;
+            height: 48px;
+            border: 5px solid #FFF;
+            border-bottom-color: var(--brand-orange);
+            border-radius: 50%;
+            display: inline-block;
+            box-sizing: border-box;
+            animation: rotation 1s linear infinite;
+        }
+
+        @keyframes rotation {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+    
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        'brand-orange': 'var(--brand-orange)',
+                        'brand-gray': 'var(--brand-gray)',
+                    }
+                }
+            }
+        }
+    </script>
+</head>
+<body class="bg-gray-100 text-brand-gray min-h-screen antialiased overflow-x-hidden">
+
+    <div class="container mx-auto w-full p-2 md:p-4"> 
+
+        <header class="relative flex items-center justify-center mb-8">
+            <h1 class="text-3xl md:text-5xl font-bold text-brand-orange tracking-tight">
+                Scannerizza Etichetta
+            </h1>
+
+            <a href="https://delnic85.github.io/ILS/magazzino.html" 
+               class="absolute right-0 top-1/2 -translate-y-1/2 flex items-center gap-1 text-brand-gray hover:text-brand-orange font-semibold transition-colors duration-200 group">
+                <span>Magazzino</span>
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-5 h-5 group-hover:translate-x-1 transition-transform">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M13.5 4.5 21 12m0 0-7.5 7.5M21 12H3" />
+                </svg>
+            </a>
+        </header>
+
+        <div class="bg-white rounded-2xl shadow-lg p-4 mb-6">
+            <div>
+                <label for="search-box" class="sr-only">Cerca Tracking</label>
+                <input type="text" id="search-box" 
+                       placeholder="Inserisci il codice di tracking..." 
+                       class="w-full p-4 border border-gray-300 rounded-lg text-lg shadow-sm
+                              focus:outline-none focus:ring-2 focus:ring-brand-orange focus:border-transparent">
+            </div>
+        </div>
+
+        <div class="space-y-6">
+            <div id="status-message" class="p-8 text-center bg-white rounded-2xl shadow-lg">
+                <div class="flex flex-col items-center justify-center space-y-4">
+                    <span class="loader"></span>
+                    <span class="text-gray-500 font-medium">Caricamento ordini e magazzino...</span>
+                </div>
+            </div>
+
+            <div id="orders-container" class="space-y-6">
+            </div>
+        </div>
+
+    </div>
+
+    <script>
+        const ORDER_SHEET_URLS = [
+            'https://docs.google.com/spreadsheets/d/e/2PACX-1vSIRX2of-3t_4Z9U0X8Vy7yBHkaDXkpxqHnb3rP1GrFegKACJMRzKdQQrF2Yx3ZsnsyjZ78xHtS9SqO/pub?gid=0&single=true&output=csv',
+            'https://docs.google.com/spreadsheets/d/e/2PACX-1vSIRX2of-3t_4Z9U0X8Vy7yBHkaDXkpxqHnb3rP1GrFegKACJMRzKdQQrF2Yx3ZsnsyjZ78xHtS9SqO/pub?gid=698965104&single=true&output=csv',
+            'https://docs.google.com/spreadsheets/d/e/2PACX-1vSIRX2of-3t_4Z9U0X8Vy7yBHkaDXkpxqHnb3rP1GrFegKACJMRzKdQQrF2Yx3ZsnsyjZ78xHtS9SqO/pub?gid=678087424&single=true&output=csv',
+            'https://docs.google.com/spreadsheets/d/e/2PACX-1vSIRX2of-3t_4Z9U0X8Vy7yBHkaDXkpxqHnb3rP1GrFegKACJMRzKdQQrF2Yx3ZsnsyjZ78xHtS9SqO/pub?gid=1073596300&single=true&output=csv',
+            'https://docs.google.com/spreadsheets/d/e/2PACX-1vSIRX2of-3t_4Z9U0X8Vy7yBHkaDXkpxqHnb3rP1GrFegKACJMRzKdQQrF2Yx3ZsnsyjZ78xHtS9SqO/pub?gid=204641117&single=true&output=csv',
+            'https://docs.google.com/spreadsheets/d/e/2PACX-1vSIRX2of-3t_4Z9U0X8Vy7yBHkaDXkpxqHnb3rP1GrFegKACJMRzKdQQrF2Yx3ZsnsyjZ78xHtS9SqO/pub?gid=230562370&single=true&output=csv',
+            'https://docs.google.com/spreadsheets/d/e/2PACX-1vSIRX2of-3t_4Z9U0X8Vy7yBHkaDXkpxqHnb3rP1GrFegKACJMRzKdQQrF2Yx3ZsnsyjZ78xHtS9SqO/pub?gid=1668688473&single=true&output=csv',
+            'https://docs.google.com/spreadsheets/d/e/2PACX-1vSIRX2of-3t_4Z9U0X8Vy7yBHkaDXkpxqHnb3rP1GrFegKACJMRzKdQQrF2Yx3ZsnsyjZ78xHtS9SqO/pub?gid=1557315334&single=true&output=csv',
+            'https://docs.google.com/spreadsheets/d/e/2PACX-1vSIRX2of-3t_4Z9U0X8Vy7yBHkaDXkpxqHnb3rP1GrFegKACJMRzKdQQrF2Yx3ZsnsyjZ78xHtS9SqO/pub?gid=181417313&single=true&output=csv',
+            'https://docs.google.com/spreadsheets/d/e/2PACX-1vSIRX2of-3t_4Z9U0X8Vy7yBHkaDXkpxqHnb3rP1GrFegKACJMRzKdQQrF2Yx3ZsnsyjZ78xHtS9SqO/pub?gid=1173456993&single=true&output=csv',
+            'https://docs.google.com/spreadsheets/d/e/2PACX-1vSIRX2of-3t_4Z9U0X8Vy7yBHkaDXkpxqHnb3rP1GrFegKACJMRzKdQQrF2Yx3ZsnsyjZ78xHtS9SqO/pub?gid=32943144&single=true&output=csv',
+            'https://docs.google.com/spreadsheets/d/e/2PACX-1vSIRX2of-3t_4Z9U0X8Vy7yBHkaDXkpxqHnb3rP1GrFegKACJMRzKdQQrF2Yx3ZsnsyjZ78xHtS9SqO/pub?gid=778059903&single=true&output=csv'
+        ];
+
+        const INVENTORY_CSV_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQLf2HBC2g4q3L-hER7WPpYixWIIqJyV6MAkWm4ENZlQNrLxbroZRP3HBZ7Uzl510OVON8q590_YH_S/pub?gid=938359466&single=true&output=csv';
+
+        const ORDERS_COLS = {
+            A_ORDINE_ID: 0, H_ARTICOLO: 7, J_SKU_GLS: 9, L_QTY: 11, O_CLIENTE: 14, AH_TRACKING: 33
+        };
+
+        const INVENTORY_COLS = {
+            C_SKU_GLS: 2, F_BRAND: 5, I_SCAFFALE: 8, AB_IMG_URL: 27
+        };
+
+        let searchBox, statusMessage, ordersContainer;
+        let allGroupedOrders = [];
+        let inventoryImageMap = new Map();
+
+        document.addEventListener('DOMContentLoaded', () => {
+            searchBox = document.getElementById('search-box');
+            statusMessage = document.getElementById('status-message');
+            ordersContainer = document.getElementById('orders-container');
+
+            searchBox.addEventListener('input', renderOrders);
+            searchBox.addEventListener('keydown', (event) => {
+                if (event.key === 'Enter' || event.keyCode === 13) {
+                    event.preventDefault(); 
+                    searchBox.value = ''; 
+                    renderOrders();
+                }
+            });
+            loadAllData();
+        });
+
+        async function loadAllData() {
+            try {
+                const fetchPromises = [fetch(INVENTORY_CSV_URL)];
+                ORDER_SHEET_URLS.forEach(url => fetchPromises.push(fetch(url)));
+
+                const results = await Promise.allSettled(fetchPromises);
+
+                const inventoryResult = results[0];
+                if (inventoryResult.status === 'fulfilled' && inventoryResult.value.ok) {
+                    const inventoryCsvText = await inventoryResult.value.text();
+                    createInventoryMap(inventoryCsvText);
+                } else {
+                    throw new Error('Errore critico: Impossibile caricare il file di inventario.');
+                }
+                
+                const allOrdersMap = new Map();
+                let ordersLoadedCount = 0;
+
+                for (let i = 1; i < results.length; i++) {
+                    const orderResult = results[i];
+                    if (orderResult.status === 'fulfilled' && orderResult.value.ok) {
+                        const orderCsvText = await orderResult.value.text();
+                        processOrdersCsv(orderCsvText, allOrdersMap);
+                        ordersLoadedCount++;
+                    }
+                }
+
+                if (ordersLoadedCount === 0) throw new Error('Nessun foglio ordini caricato.');
+
+                allGroupedOrders = Array.from(allOrdersMap.values());
+                renderOrders();
+                statusMessage.classList.add('hidden');
+
+            } catch (error) {
+                console.error(error);
+                statusMessage.innerHTML = `<span class="text-red-600 font-medium">${error.message || 'Errore dati.'}</span>`;
+            }
+        }
+
+        function createInventoryMap(csvText) {
+            const lines = csvText.trim().split('\n');
+            lines.shift();
+            lines.forEach(line => {
+                const cols = parseCSVLine(line);
+                const sku = cols[INVENTORY_COLS.C_SKU_GLS];
+                if (sku) {
+                    inventoryImageMap.set(sku, { 
+                        imageUrl: cols[INVENTORY_COLS.AB_IMG_URL] || '',
+                        scaffale: cols[INVENTORY_COLS.I_SCAFFALE] || 'N/D',
+                        brand: cols[INVENTORY_COLS.F_BRAND] || 'N/D'
+                    });
+                }
+            });
+        }
+
+        function processOrdersCsv(csvText, ordersMap) {
+            const lines = csvText.trim().split('\n');
+            lines.shift(); 
+            lines.forEach(line => {
+                const cols = parseCSVLine(line);
+                const orderId = cols[ORDERS_COLS.A_ORDINE_ID];
+                if (!orderId) return;
+
+                const sku = cols[ORDERS_COLS.J_SKU_GLS] || 'N/D';
+                const inv = inventoryImageMap.get(sku) || { imageUrl: '', scaffale: 'N/D', brand: 'N/D' };
+
+                const item = {
+                    articolo: cols[ORDERS_COLS.H_ARTICOLO] || 'N/D',
+                    sku: sku,
+                    qty: cols[ORDERS_COLS.L_QTY] || '0',
+                    imageUrl: inv.imageUrl,
+                    scaffale: inv.scaffale,
+                    brand: inv.brand
+                };
+
+                if (ordersMap.has(orderId)) {
+                    ordersMap.get(orderId).items.push(item);
+                } else {
+                    ordersMap.set(orderId, {
+                        orderId: orderId,
+                        cliente: cols[ORDERS_COLS.O_CLIENTE] || 'N/D',
+                        tracking: cols[ORDERS_COLS.AH_TRACKING] || 'N/D',
+                        items: [item]
+                    });
+                }
+            });
+        }
+
+        function renderOrders() {
+            // --- NUOVA LOGICA DI RICERCA ---
+            let rawInput = searchBox.value.trim();
+            let searchTerm = rawInput.toLowerCase();
+
+            // Se il codice è più lungo di 30 caratteri, prendi solo le ultime 12 cifre
+            if (rawInput.length > 30) {
+                searchTerm = rawInput.slice(-12).toLowerCase();
+            }
+            // --------------------------------
+
+            const filteredOrders = allGroupedOrders.filter(order => order.tracking && order.tracking.toLowerCase().includes(searchTerm));
+
+            ordersContainer.innerHTML = '';
+            statusMessage.classList.add('hidden');
+
+            if (filteredOrders.length === 0) {
+                if (searchTerm.length > 0) {
+                    statusMessage.innerHTML = `<div class="p-8 text-center text-gray-500">Nessun ordine trovato.</div>`;
+                    statusMessage.classList.remove('hidden');
+                } else if (!document.querySelector('.loader')) {
+                    statusMessage.innerHTML = `<div class="p-8 text-center text-gray-500">Inserisci un codice.</div>`;
+                    statusMessage.classList.remove('hidden');
+                }
+                return;
+            }
+
+            filteredOrders.forEach(order => {
+                const orderCard = document.createElement('div');
+                orderCard.className = 'bg-white rounded-2xl shadow-lg overflow-hidden mb-6';
+                
+                const headerHtml = `
+                    <div class="bg-brand-gray text-white p-4 md:flex justify-between items-center">
+                        <div><p class="text-sm uppercase opacity-80">Cliente</p><p class="text-xl font-bold">${order.cliente}</p></div>
+                        <div class="mt-2 md:mt-0 md:text-right"><p class="text-sm uppercase opacity-80">Tracking</p><p class="text-xl font-bold text-brand-orange">${order.tracking || 'N/D'}</p></div>
+                    </div>
+                `;
+
+                const itemCount = order.items.length;
+                const isSingleItem = itemCount === 1;
+                
+                // CALCOLO COLONNE: Massimo 3 per riga
+                const gridCols = Math.min(itemCount, 3);
+
+                const itemsHtml = order.items.map(item => {
+                    const placeholderImg = `https://placehold.co/150x150/FD991F/white?text=${item.sku[0] || '?'}`;
+                    
+                    const imgBoxClass = isSingleItem ? "w-72 h-72" : "w-40 h-40";
+                    const titleClass = isSingleItem ? "text-2xl md:text-3xl mb-6" : "text-base md:text-lg mb-3";
+                    const shelfSizeClass = isSingleItem ? "text-6xl" : "text-5xl";
+                    const detailsContainerClass = isSingleItem ? "ml-8 gap-4" : "ml-4 gap-2";
+
+                    return `
+                        <div class="bg-white flex flex-col p-4 ${isSingleItem ? 'items-center text-center' : ''}">
+                            
+                            <p class="font-semibold text-gray-800 line-clamp-2 ${titleClass}" title="${item.articolo}">
+                                ${item.articolo}
+                            </p>
+
+                            <div class="flex items-center ${isSingleItem ? 'justify-center' : 'justify-start'} w-full">
+                                
+                                <div class="${imgBoxClass} flex-shrink-0 flex items-center justify-center bg-gray-50 rounded-md border border-gray-100 p-1">
+                                    <img src="${item.imageUrl || placeholderImg}" 
+                                         alt="Prodotto"
+                                         class="w-full h-full object-contain" 
+                                         onerror="this.onerror=null; this.src='${placeholderImg}';">
+                                </div>
+
+                                <div class="flex flex-col items-start text-left flex-grow ${detailsContainerClass}">
+                                    
+                                    <p class="text-sm text-brand-orange font-bold break-all">
+                                        ${item.sku}
+                                    </p>
+                                    
+                                    <div class="flex items-baseline gap-4 mt-1">
+                                        <span class="text-gray-600 font-medium text-lg">
+                                            ${item.brand}
+                                        </span>
+                                        <span class="${shelfSizeClass} font-black text-brand-orange leading-none">
+                                            ${item.scaffale}
+                                        </span>
+                                    </div>
+
+                                    <div class="mt-3">
+                                        <div class="w-16 h-16 bg-brand-orange text-white text-3xl font-bold
+                                                    rounded-full flex items-center justify-center shadow-md">
+                                            ${item.qty}
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                }).join('');
+
+                // "GAP TRICK": Background container grigio + gap + celle bianche = bordi perfetti
+                orderCard.innerHTML = `
+                    ${headerHtml}
+                    <div class="grid bg-brand-gray gap-[2px] border-2 border-brand-gray" 
+                         style="grid-template-columns: repeat(${gridCols}, minmax(0, 1fr));">
+                        ${itemsHtml}
+                    </div>
+                `;
+                
+                ordersContainer.appendChild(orderCard);
+            });
+        }
+
+        function parseCSVLine(line) {
+            const values = [];
+            let inQuote = false;
+            let currentValue = '';
+            for (let i = 0; i < line.length; i++) {
+                const char = line[i];
+                if (char === '"') {
+                    if (inQuote && line[i+1] === '"') { currentValue += '"'; i++; } 
+                    else { inQuote = !inQuote; }
+                } else if (char === ',' && !inQuote) {
+                    values.push(currentValue.trim().replace(/^"|"$/g, '')); currentValue = '';
+                } else { currentValue += char; }
+            }
+            values.push(currentValue.trim().replace(/^"|"$/g, ''));
+            return values;
+        }
+    </script>
+</body>
+</html>
