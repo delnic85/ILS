@@ -122,6 +122,9 @@
         let searchBox, statusMessage, ordersContainer;
         let allGroupedOrders = [];
         let inventoryImageMap = new Map();
+        
+        // NUOVA VARIABILE: Indice veloce per la ricerca
+        let trackingIndex = new Map();
 
         document.addEventListener('DOMContentLoaded', () => {
             searchBox = document.getElementById('search-box');
@@ -129,18 +132,12 @@
             ordersContainer = document.getElementById('orders-container');
 
             searchBox.addEventListener('input', renderOrders);
-            
-            // --- CORREZIONE BUG SCANNER ---
             searchBox.addEventListener('keydown', (event) => {
                 if (event.key === 'Enter' || event.keyCode === 13) {
                     event.preventDefault(); 
-                    // INVECE DI CANCELLARE (che nascondeva i risultati), SELEZIONIAMO IL TESTO.
-                    // Il prossimo scan sovrascriverà automaticamente il testo selezionato.
                     searchBox.select();
                 }
             });
-            // ------------------------------
-            
             loadAllData();
         });
 
@@ -174,6 +171,13 @@
                 if (ordersLoadedCount === 0) throw new Error('Nessun foglio ordini caricato.');
 
                 allGroupedOrders = Array.from(allOrdersMap.values());
+                
+                // --- CREAZIONE INDICE VELOCE ---
+                buildTrackingIndex();
+                // -------------------------------
+
+                console.log(`Processati ${allGroupedOrders.length} ordini raggruppati da ${ordersLoadedCount} fonti.`);
+                
                 renderOrders();
                 statusMessage.classList.add('hidden');
 
@@ -181,6 +185,19 @@
                 console.error(error);
                 statusMessage.innerHTML = `<span class="text-red-600 font-medium">${error.message || 'Errore dati.'}</span>`;
             }
+        }
+
+        // Funzione per creare l'indice Hash Map (Ricerca Istantanea)
+        function buildTrackingIndex() {
+            trackingIndex.clear();
+            allGroupedOrders.forEach(order => {
+                if (order.tracking) {
+                    // Salviamo il tracking in minuscolo come chiave per l'ordine
+                    // .trim() rimuove spazi vuoti accidentali
+                    trackingIndex.set(order.tracking.toLowerCase().trim(), order);
+                }
+            });
+            console.log("Indice di ricerca veloce creato.");
         }
 
         function createInventoryMap(csvText) {
@@ -241,7 +258,22 @@
                 searchTerm = rawInput.slice(-12).toLowerCase();
             }
 
-            const filteredOrders = allGroupedOrders.filter(order => order.tracking && order.tracking.toLowerCase().includes(searchTerm));
+            // --- RICERCA OTTIMIZZATA ---
+            let filteredOrders = [];
+
+            // 1. Prova PRIMA la ricerca esatta nell'indice (O(1) - Istantaneo)
+            if (trackingIndex.has(searchTerm)) {
+                filteredOrders = [trackingIndex.get(searchTerm)];
+            } else {
+                // 2. Se non trovi nulla (es. ricerca parziale manuale), usa il metodo lento (O(N))
+                // Solo se c'è testo da cercare
+                if (searchTerm.length > 0) {
+                    filteredOrders = allGroupedOrders.filter(order => 
+                        order.tracking && order.tracking.toLowerCase().includes(searchTerm)
+                    );
+                }
+            }
+            // ---------------------------
 
             ordersContainer.innerHTML = '';
             statusMessage.classList.add('hidden');
