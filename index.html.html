@@ -51,7 +51,11 @@
         }
     </script>
 </head>
-<body class="bg-gray-100 text-brand-gray min-h-screen antialiased overflow-x-hidden">
+<body class="bg-gray-100 text-brand-gray min-h-screen antialiased overflow-x-hidden relative">
+
+    <div id="perf-timer" class="fixed top-2 left-2 bg-black text-white px-3 py-1 rounded text-xs font-mono shadow-md z-50 hidden">
+        Tempo: -- ms
+    </div>
 
     <div class="container mx-auto w-full p-2 md:p-4"> 
 
@@ -87,7 +91,34 @@
                 </div>
             </div>
 
-            <div id="orders-container" class="space-y-6">
+            <div id="main-layout" class="flex flex-col lg:flex-row gap-6 hidden">
+                
+                <div id="orders-container" class="flex-1">
+                    </div>
+
+                <div id="sidebar-container" class="w-full lg:w-1/4 hidden">
+                    <div class="bg-white rounded-2xl shadow-lg overflow-hidden sticky top-4">
+                        <div class="bg-brand-gray text-white p-3">
+                            <h3 class="font-bold text-center uppercase tracking-wider text-sm">Totali in questo Report</h3>
+                        </div>
+                        <div class="p-4">
+                            <table class="w-full text-sm">
+                                <thead>
+                                    <tr class="border-b border-gray-200">
+                                        <th class="text-left py-2 text-brand-orange">SKU GLS</th>
+                                        <th class="text-right py-2 text-brand-gray">Venduti</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="sidebar-tbody">
+                                    </tbody>
+                            </table>
+                            <p class="text-xs text-gray-400 mt-4 text-center italic">
+                                *Somma totale delle quantità per questi SKU nel file del report corrente.
+                            </p>
+                        </div>
+                    </div>
+                </div>
+
             </div>
         </div>
 
@@ -119,35 +150,50 @@
             C_SKU_GLS: 2, F_BRAND: 5, I_SCAFFALE: 8, AB_IMG_URL: 27
         };
 
-        let searchBox, statusMessage, ordersContainer;
+        let searchBox, statusMessage, ordersContainer, perfTimer, sidebarContainer, sidebarTbody, mainLayout;
         let allGroupedOrders = [];
         let inventoryImageMap = new Map();
+        let trackingIndex = new Map();
+        
+        // NUOVO: Array per tenere traccia dei totali SKU per ogni report
+        // skuCountsByReport[0] = { "SKU1": 10, "SKU2": 5 } (Totali del primo link)
+        let skuCountsByReport = [];
+
+        // Variabile per il tempo
+        let searchStartTime = 0;
 
         document.addEventListener('DOMContentLoaded', () => {
             searchBox = document.getElementById('search-box');
             statusMessage = document.getElementById('status-message');
             ordersContainer = document.getElementById('orders-container');
+            perfTimer = document.getElementById('perf-timer');
+            sidebarContainer = document.getElementById('sidebar-container');
+            sidebarTbody = document.getElementById('sidebar-tbody');
+            mainLayout = document.getElementById('main-layout');
 
-            searchBox.addEventListener('input', renderOrders);
-            
-            // --- CORREZIONE BUG SCANNER ---
+            searchBox.addEventListener('input', () => {
+                // Se l'input cambia "manualmente", avvia render (ma senza timer preciso come keydown)
+                renderOrders();
+            });
+
             searchBox.addEventListener('keydown', (event) => {
                 if (event.key === 'Enter' || event.keyCode === 13) {
                     event.preventDefault(); 
-                    // INVECE DI CANCELLARE (che nascondeva i risultati), SELEZIONIAMO IL TESTO.
-                    // Il prossimo scan sovrascriverà automaticamente il testo selezionato.
-                    searchBox.select();
+                    searchStartTime = performance.now(); // Start Timer
+                    searchBox.select(); 
+                    renderOrders();
                 }
             });
-            // ------------------------------
-            
             loadAllData();
         });
 
         async function loadAllData() {
             try {
                 const fetchPromises = [fetch(INVENTORY_CSV_URL)];
-                ORDER_SHEET_URLS.forEach(url => fetchPromises.push(fetch(url)));
+                
+                ORDER_SHEET_URLS.forEach(url => {
+                    fetchPromises.push(fetch(url));
+                });
 
                 const results = await Promise.allSettled(fetchPromises);
 
@@ -162,11 +208,22 @@
                 const allOrdersMap = new Map();
                 let ordersLoadedCount = 0;
 
+                // Inizializza l'array dei conteggi per i report
+                skuCountsByReport = new Array(ORDER_SHEET_URLS.length).fill(null);
+
                 for (let i = 1; i < results.length; i++) {
                     const orderResult = results[i];
+                    const reportIndex = i - 1; // Indice del report (0 a 11)
+
                     if (orderResult.status === 'fulfilled' && orderResult.value.ok) {
                         const orderCsvText = await orderResult.value.text();
-                        processOrdersCsv(orderCsvText, allOrdersMap);
+                        
+                        // Inizializza oggetto conteggi per questo report
+                        skuCountsByReport[reportIndex] = {}; 
+                        
+                        // Passiamo l'indice del report per tracciare da dove viene l'ordine e contare gli SKU
+                        processOrdersCsv(orderCsvText, allOrdersMap, reportIndex);
+                        
                         ordersLoadedCount++;
                     }
                 }
@@ -174,6 +231,11 @@
                 if (ordersLoadedCount === 0) throw new Error('Nessun foglio ordini caricato.');
 
                 allGroupedOrders = Array.from(allOrdersMap.values());
+                
+                buildTrackingIndex();
+
+                console.log(`Processati ${allGroupedOrders.length} ordini raggruppati da ${ordersLoadedCount} fonti.`);
+                
                 renderOrders();
                 statusMessage.classList.add('hidden');
 
@@ -181,6 +243,15 @@
                 console.error(error);
                 statusMessage.innerHTML = `<span class="text-red-600 font-medium">${error.message || 'Errore dati.'}</span>`;
             }
+        }
+
+        function buildTrackingIndex() {
+            trackingIndex.clear();
+            allGroupedOrders.forEach(order => {
+                if (order.tracking) {
+                    trackingIndex.set(order.tracking.toLowerCase().trim(), order);
+                }
+            });
         }
 
         function createInventoryMap(csvText) {
@@ -199,21 +270,38 @@
             });
         }
 
-        function processOrdersCsv(csvText, ordersMap) {
+        function processOrdersCsv(csvText, ordersMap, reportIndex) {
             const lines = csvText.trim().split('\n');
             lines.shift(); 
+            
+            // Riferimento ai conteggi di QUESTO report specifico
+            let currentReportCounts = skuCountsByReport[reportIndex];
+
             lines.forEach(line => {
                 const cols = parseCSVLine(line);
                 const orderId = cols[ORDERS_COLS.A_ORDINE_ID];
                 if (!orderId) return;
 
                 const sku = cols[ORDERS_COLS.J_SKU_GLS] || 'N/D';
+                const qtyStr = cols[ORDERS_COLS.L_QTY] || '0';
+                const qty = parseInt(qtyStr) || 0;
+
+                // --- CALCOLO TOTALI SKU PER REPORT ---
+                // Se lo SKU esiste, sommiamo la quantità
+                if (sku !== 'N/D') {
+                    if (!currentReportCounts[sku]) {
+                        currentReportCounts[sku] = 0;
+                    }
+                    currentReportCounts[sku] += qty;
+                }
+                // -------------------------------------
+
                 const inv = inventoryImageMap.get(sku) || { imageUrl: '', scaffale: 'N/D', brand: 'N/D' };
 
                 const item = {
                     articolo: cols[ORDERS_COLS.H_ARTICOLO] || 'N/D',
                     sku: sku,
-                    qty: cols[ORDERS_COLS.L_QTY] || '0',
+                    qty: qty,
                     imageUrl: inv.imageUrl,
                     scaffale: inv.scaffale,
                     brand: inv.brand
@@ -226,6 +314,7 @@
                         orderId: orderId,
                         cliente: cols[ORDERS_COLS.O_CLIENTE] || 'N/D',
                         tracking: cols[ORDERS_COLS.AH_TRACKING] || 'N/D',
+                        reportIndex: reportIndex, // Salviamo l'indice del report a cui appartiene l'ordine
                         items: [item]
                     });
                 }
@@ -236,15 +325,26 @@
             let rawInput = searchBox.value.trim();
             let searchTerm = rawInput.toLowerCase();
 
-            // Logica per codici lunghi (> 30 char)
             if (rawInput.length > 30) {
                 searchTerm = rawInput.slice(-12).toLowerCase();
             }
 
-            const filteredOrders = allGroupedOrders.filter(order => order.tracking && order.tracking.toLowerCase().includes(searchTerm));
+            let filteredOrders = [];
+            if (trackingIndex.has(searchTerm)) {
+                filteredOrders = [trackingIndex.get(searchTerm)];
+            } else {
+                if (searchTerm.length > 0) {
+                    filteredOrders = allGroupedOrders.filter(order => 
+                        order.tracking && order.tracking.toLowerCase().includes(searchTerm)
+                    );
+                }
+            }
 
             ordersContainer.innerHTML = '';
+            sidebarTbody.innerHTML = ''; // Pulisci sidebar
             statusMessage.classList.add('hidden');
+            mainLayout.classList.add('hidden'); // Nascondi layout principale se vuoto
+            sidebarContainer.classList.add('hidden'); // Nascondi sidebar di default
 
             if (filteredOrders.length === 0) {
                 if (searchTerm.length > 0) {
@@ -254,8 +354,42 @@
                     statusMessage.innerHTML = `<div class="p-8 text-center text-gray-500">Inserisci un codice.</div>`;
                     statusMessage.classList.remove('hidden');
                 }
+                updateTimer();
                 return;
             }
+
+            // Mostra il layout principale
+            mainLayout.classList.remove('hidden');
+
+            // --- GESTIONE SIDEBAR STATISTICHE ---
+            // Prendiamo il primo ordine trovato (di solito ne cerchiamo uno specifico)
+            const mainOrder = filteredOrders[0];
+            const reportIdx = mainOrder.reportIndex;
+            
+            // Se abbiamo l'indice del report e i dati dei conteggi esistono
+            if (reportIdx !== undefined && skuCountsByReport[reportIdx]) {
+                const reportStats = skuCountsByReport[reportIdx];
+                let sidebarHtml = '';
+                
+                // Creiamo un Set di SKU unici presenti in questo ordine per non duplicare righe nella tabella stats
+                const uniqueSkusInOrder = new Set(mainOrder.items.map(i => i.sku));
+
+                uniqueSkusInOrder.forEach(sku => {
+                    if(sku !== 'N/D') {
+                        const totalSold = reportStats[sku] || 0;
+                        sidebarHtml += `
+                            <tr class="border-b border-gray-100 last:border-0">
+                                <td class="py-2 text-brand-orange font-bold">${sku}</td>
+                                <td class="py-2 text-right font-bold text-gray-700 text-lg">${totalSold}</td>
+                            </tr>
+                        `;
+                    }
+                });
+
+                sidebarTbody.innerHTML = sidebarHtml;
+                sidebarContainer.classList.remove('hidden'); // Mostra sidebar
+            }
+            // ------------------------------------
 
             filteredOrders.forEach(order => {
                 const orderCard = document.createElement('div');
@@ -282,26 +416,20 @@
 
                     return `
                         <div class="bg-white flex flex-col p-4 ${isSingleItem ? 'items-center text-center' : ''}">
-                            
                             <p class="font-semibold text-gray-800 line-clamp-2 ${titleClass}" title="${item.articolo}">
                                 ${item.articolo}
                             </p>
-
                             <div class="flex items-center ${isSingleItem ? 'justify-center' : 'justify-start'} w-full">
-                                
                                 <div class="${imgBoxClass} flex-shrink-0 flex items-center justify-center bg-gray-50 rounded-md border border-gray-100 p-1">
                                     <img src="${item.imageUrl || placeholderImg}" 
                                          alt="Prodotto"
                                          class="w-full h-full object-contain" 
                                          onerror="this.onerror=null; this.src='${placeholderImg}';">
                                 </div>
-
                                 <div class="flex flex-col items-start text-left flex-grow ${detailsContainerClass}">
-                                    
                                     <p class="text-sm text-brand-orange font-bold break-all">
                                         ${item.sku}
                                     </p>
-                                    
                                     <div class="flex items-baseline gap-4 mt-1">
                                         <span class="text-gray-600 font-medium text-lg">
                                             ${item.brand}
@@ -310,7 +438,6 @@
                                             ${item.scaffale}
                                         </span>
                                     </div>
-
                                     <div class="mt-3">
                                         <div class="w-16 h-16 bg-brand-orange text-white text-3xl font-bold
                                                     rounded-full flex items-center justify-center shadow-md">
@@ -333,6 +460,19 @@
                 
                 ordersContainer.appendChild(orderCard);
             });
+
+            updateTimer();
+        }
+
+        function updateTimer() {
+            const endTime = performance.now();
+            const duration = (endTime - searchStartTime).toFixed(0);
+            
+            // Mostra il timer solo se la ricerca è partita da "Enter" (searchStartTime > 0)
+            if (searchStartTime > 0) {
+                perfTimer.textContent = `Tempo: ${duration} ms`;
+                perfTimer.classList.remove('hidden');
+            }
         }
 
         function parseCSVLine(line) {
