@@ -122,10 +122,10 @@
     <script>
         // --- CONFIGURAZIONE ---
         
-        // 1. ID DEL FOGLIO ORDINI (Corretto dal tuo link: K maiuscola e h minuscola)
+        // 1. ID CORRETTO (dallo link condiviso: Qh e K)
         const SHEET_ID_ORDINI = "1Qjj9QhNw4unnUV3t2kNP9j3K-usHzw-MCQ3laUrwqos";
         
-        // 2. NOMI DELLE SCHEDE (Esattamente come nel foglio)
+        // 2. NOMI DELLE SCHEDE
         const NOMI_SCHEDE = [
             "GERMANIA", "FRANCIA", "ITALIA", "PAESI BASSI", "SPAGNA", 
             "BELGIO", "AUSTRIA", "REP. CECA", "UNGHERIA", "PORTOGALLO", 
@@ -137,11 +137,18 @@
             `https://docs.google.com/spreadsheets/d/${SHEET_ID_ORDINI}/gviz/tq?tqx=out:csv&sheet=${encodeURIComponent(nome)}`
         );
 
-        // URL Magazzino (File separato)
+        // URL Magazzino
         const INVENTORY_CSV_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQLf2HBC2g4q3L-hER7WPpYixWIIqJyV6MAkWm4ENZlQNrLxbroZRP3HBZ7Uzl510OVON8q590_YH_S/pub?gid=938359466&single=true&output=csv';
 
+        // --- MAPPATURA COLONNE AGGIORNATA (Nuovo Report Temu) ---
+        // A=0, H=7, K=10, M=12, AI=34
         const ORDERS_COLS = {
-            A_ORDINE_ID: 0, H_ARTICOLO: 7, J_SKU_GLS: 9, L_QTY: 11, O_CLIENTE: 14, AH_TRACKING: 33
+            A_ORDINE_ID: 0, 
+            H_ARTICOLO: 7,      // Colonna H: Titolo prodotto
+            K_SKU_GLS: 10,      // Colonna K: SKU (Nuova posizione)
+            M_QTY: 12,          // Colonna M: Quantità (Nuova posizione, prima era L)
+            O_CLIENTE: 14,      // Colonna O: Cliente (Verificare se corretto, mantenuto 14)
+            AI_TRACKING: 34     // Colonna AI: Tracking (Nuova posizione)
         };
 
         const INVENTORY_COLS = {
@@ -179,26 +186,23 @@
 
         async function loadAllData() {
             try {
-                // Fetch Magazzino + Ordini
                 const fetchPromises = [fetch(INVENTORY_CSV_URL)];
                 ORDER_SHEET_URLS.forEach(url => fetchPromises.push(fetch(url)));
 
                 const results = await Promise.allSettled(fetchPromises);
 
-                // 1. Magazzino
                 const inventoryResult = results[0];
                 if (inventoryResult.status === 'fulfilled' && inventoryResult.value.ok) {
                     const inventoryCsvText = await inventoryResult.value.text();
                     createInventoryMap(inventoryCsvText);
                 } else {
-                    console.error("Errore Magazzino: Link scaduto o bloccato.");
+                    console.error("Errore Magazzino.");
                 }
                 
                 const allOrdersMap = new Map();
                 let ordersLoadedCount = 0;
                 skuCountsByReport = new Array(ORDER_SHEET_URLS.length).fill(null);
 
-                // 2. Ordini (da index 1)
                 for (let i = 1; i < results.length; i++) {
                     const orderResult = results[i];
                     const reportIndex = i - 1;
@@ -266,13 +270,14 @@
 
             lines.forEach(line => {
                 const cols = parseCSVLine(line);
-                if (cols.length < ORDERS_COLS.AH_TRACKING) return;
+                // Controllo se la riga è lunga abbastanza per arrivare alla colonna AI (34)
+                if (cols.length <= ORDERS_COLS.AI_TRACKING) return;
 
                 const orderId = cols[ORDERS_COLS.A_ORDINE_ID];
                 if (!orderId) return;
 
-                const sku = cols[ORDERS_COLS.J_SKU_GLS] || 'N/D';
-                const qty = parseInt(cols[ORDERS_COLS.L_QTY]) || 0;
+                const sku = cols[ORDERS_COLS.K_SKU_GLS] || 'N/D'; // Usa Colonna K
+                const qty = parseInt(cols[ORDERS_COLS.M_QTY]) || 0; // Usa Colonna M
 
                 if (sku !== 'N/D') {
                     if (!currentReportCounts[sku]) currentReportCounts[sku] = 0;
@@ -296,7 +301,7 @@
                     ordersMap.set(orderId, {
                         orderId: orderId,
                         cliente: cols[ORDERS_COLS.O_CLIENTE] || 'N/D',
-                        tracking: cols[ORDERS_COLS.AH_TRACKING] || 'N/D',
+                        tracking: cols[ORDERS_COLS.AI_TRACKING] || 'N/D', // Usa Colonna AI
                         reportIndex: reportIndex,
                         items: [item]
                     });
@@ -339,7 +344,6 @@
 
             mainLayout.classList.remove('hidden');
 
-            // Sidebar Stats
             const mainOrder = filteredOrders[0];
             const reportIdx = mainOrder.reportIndex;
             
