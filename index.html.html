@@ -87,7 +87,7 @@
             <div id="status-message" class="p-8 text-center bg-white rounded-2xl shadow-lg">
                 <div class="flex flex-col items-center justify-center space-y-4">
                     <span class="loader"></span>
-                    <span class="text-gray-500 font-medium" id="loading-text">Caricamento ordini e magazzino...</span>
+                    <span class="text-gray-500 font-medium" id="loading-text">Caricamento dati...</span>
                 </div>
             </div>
 
@@ -120,7 +120,7 @@
     </div>
 
     <script>
-        // ID FOGLIO (Case sensitive)
+        // --- CONFIGURAZIONE ---
         const SHEET_ID_ORDINI = "1Qjj9QhNw4unnUV3t2kNP9j3K-usHzw-MCQ3laUrwqos";
         
         const NOMI_SCHEDE = [
@@ -133,35 +133,32 @@
             `https://docs.google.com/spreadsheets/d/${SHEET_ID_ORDINI}/gviz/tq?tqx=out:csv&sheet=${encodeURIComponent(nome)}`
         );
 
+        // URL SYNC PRODOTTI (Ponte tra SKU e ASIN)
+        const SYNC_PRODOTTI_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQLf2HBC2g4q3L-hER7WPpYixWIIqJyV6MAkWm4ENZlQNrLxbroZRP3HBZ7Uzl510OVON8q590_YH_S/pub?gid=940187269&single=true&output=csv';
+
+        // URL MAGAZZINO (Info finali tramite ASIN)
         const INVENTORY_CSV_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQLf2HBC2g4q3L-hER7WPpYixWIIqJyV6MAkWm4ENZlQNrLxbroZRP3HBZ7Uzl510OVON8q590_YH_S/pub?gid=938359466&single=true&output=csv';
 
-        // --- DEFINIZIONE DELLE DUE MAPPATURE POSSIBILI ---
-        
-        // Mappatura 1: VECCHIO FORMATO (Tracking in AH/33)
-        const MAP_OLD = {
-            ORDER_ID: 0,
-            ITEM_TITLE: 7,
-            SKU: 9,      // J
-            QTY: 11,     // L
-            CLIENT: 14,  // O
-            TRACKING: 33 // AH
+        // MAPPATURE
+        const MAP_OLD = { ORDER_ID: 0, ITEM_TITLE: 7, SKU: 9, QTY: 11, CLIENT: 14, TRACKING: 33 };
+        const MAP_NEW = { ORDER_ID: 0, ITEM_TITLE: 7, SKU: 10, QTY: 12, CLIENT: 15, TRACKING: 34 };
+
+        // SYNC: Colonna A = ASIN (0), Colonna B = SKU (1)
+        const SYNC_COLS = { ASIN: 0, SKU: 1 };
+
+        // MAGAZZINO: Colonna A = ASIN (0), il resto uguale
+        const INVENTORY_COLS = { 
+            ASIN: 0, // Chiave di ricerca nel magazzino
+            F_BRAND: 5, 
+            I_SCAFFALE: 8, 
+            AB_IMG_URL: 27 
         };
 
-        // Mappatura 2: NUOVO FORMATO (Tracking in AI/34 - Tutto +1)
-        const MAP_NEW = {
-            ORDER_ID: 0,
-            ITEM_TITLE: 7,
-            SKU: 10,     // K
-            QTY: 12,     // M
-            CLIENT: 15,  // P
-            TRACKING: 34 // AI
-        };
-
-        const INVENTORY_COLS = { C_SKU_GLS: 2, F_BRAND: 5, I_SCAFFALE: 8, AB_IMG_URL: 27 };
-
+        // --- VARIABILI GLOBALI ---
         let searchBox, statusMessage, loadingText, ordersContainer, perfTimer, sidebarContainer, sidebarTbody, mainLayout;
         let allGroupedOrders = [];
-        let inventoryImageMap = new Map();
+        let inventoryDataMap = new Map(); // Mappa finale: ASIN -> Dati Magazzino
+        let skuToAsinMap = new Map();     // Mappa ponte: SKU -> ASIN
         let trackingIndex = new Map();
         let skuCountsByReport = [];
         let searchStartTime = 0;
@@ -190,18 +187,32 @@
 
         async function loadAllData() {
             try {
+                // 1. Carica SYNC PRODOTTI (SKU -> ASIN)
+                loadingText.textContent = "Caricamento tabella di conversione...";
+                const syncResponse = await fetch(SYNC_PRODOTTI_URL);
+                if (syncResponse.ok) {
+                    createSkuToAsinMap(await syncResponse.text());
+                } else {
+                    console.error("Errore Sync Prodotti");
+                }
+
+                // 2. Carica MAGAZZINO (ASIN -> Dati)
+                loadingText.textContent = "Caricamento magazzino...";
                 const invResponse = await fetch(INVENTORY_CSV_URL);
                 if (invResponse.ok) {
                     createInventoryMap(await invResponse.text());
+                } else {
+                    console.error("Errore Magazzino");
                 }
 
                 const allOrdersMap = new Map();
                 let ordersLoadedCount = 0;
                 skuCountsByReport = new Array(NOMI_SCHEDE.length).fill(null);
 
+                // 3. Carica ORDINI
                 for (let i = 0; i < NOMI_SCHEDE.length; i++) {
                     const nome = NOMI_SCHEDE[i];
-                    loadingText.textContent = `Caricamento ${nome}... (${i+1}/${NOMI_SCHEDE.length})`;
+                    loadingText.textContent = `Caricamento ordini ${nome}... (${i+1}/${NOMI_SCHEDE.length})`;
                     
                     try {
                         const response = await fetch(ORDER_SHEET_URLS[i]);
@@ -229,29 +240,43 @@
             }
         }
 
-        function buildTrackingIndex() {
-            trackingIndex.clear();
-            allGroupedOrders.forEach(order => {
-                if (order.tracking) {
-                    trackingIndex.set(order.tracking.toLowerCase().trim(), order);
+        // --- MAPPA PONTE: SKU -> ASIN ---
+        function createSkuToAsinMap(csvText) {
+            const lines = csvText.trim().split('\n');
+            lines.shift(); // Skip header
+            lines.forEach(line => {
+                const cols = parseCSVLine(line);
+                const asin = cols[SYNC_COLS.ASIN];
+                const sku = cols[SYNC_COLS.SKU];
+                if (asin && sku) {
+                    // Normalizziamo lo SKU (trim) per evitare problemi di spazi
+                    skuToAsinMap.set(sku.trim(), asin.trim());
                 }
             });
         }
 
+        // --- MAPPA DATI: ASIN -> INFO ---
         function createInventoryMap(csvText) {
             const lines = csvText.trim().split('\n');
             lines.shift();
             lines.forEach(line => {
                 const cols = parseCSVLine(line);
-                if (cols.length > INVENTORY_COLS.C_SKU_GLS) {
-                    const sku = cols[INVENTORY_COLS.C_SKU_GLS];
-                    if (sku) {
-                        inventoryImageMap.set(sku, { 
-                            imageUrl: cols[INVENTORY_COLS.AB_IMG_URL] || '',
-                            scaffale: cols[INVENTORY_COLS.I_SCAFFALE] || 'N/D',
-                            brand: cols[INVENTORY_COLS.F_BRAND] || 'N/D'
-                        });
-                    }
+                const asin = cols[INVENTORY_COLS.ASIN]; // Colonna A del magazzino
+                if (asin) {
+                    inventoryDataMap.set(asin.trim(), { 
+                        imageUrl: cols[INVENTORY_COLS.AB_IMG_URL] || '',
+                        scaffale: cols[INVENTORY_COLS.I_SCAFFALE] || 'N/D',
+                        brand: cols[INVENTORY_COLS.F_BRAND] || 'N/D'
+                    });
+                }
+            });
+        }
+
+        function buildTrackingIndex() {
+            trackingIndex.clear();
+            allGroupedOrders.forEach(order => {
+                if (order.tracking) {
+                    trackingIndex.set(order.tracking.toLowerCase().trim(), order);
                 }
             });
         }
@@ -264,38 +289,45 @@
             lines.forEach(line => {
                 const cols = parseCSVLine(line);
                 
-                // --- INTELLIGENZA ARTIFICIALE (QUASI) ---
-                // Decidiamo quale mappatura usare per QUESTA riga
-                // Controlliamo la colonna 34 (AI). Se sembra un tracking, usiamo MAP_NEW.
-                // Altrimenti usiamo MAP_OLD.
-                
-                let mapping = MAP_OLD; // Default
+                // Rilevamento automatico formato (AH vs AI)
+                let mapping = MAP_OLD;
                 const col34 = cols[34] ? cols[34].trim() : "";
-                
-                // Se la colonna 34 è lunga, non contiene "€" e non è vuota -> È il nuovo formato
                 if (col34.length > 5 && !col34.includes("€") && !col34.includes(".")) {
                     mapping = MAP_NEW;
                 }
 
-                // Controllo validità
                 if (cols.length <= mapping.TRACKING) return;
 
                 const orderId = cols[mapping.ORDER_ID];
                 if (!orderId) return;
 
-                const sku = cols[mapping.SKU] || 'N/D';
+                const sku = cols[mapping.SKU] ? cols[mapping.SKU].trim() : 'N/D';
                 const qty = parseInt(cols[mapping.QTY]) || 0;
 
+                // Calcolo Totali per Report
                 if (sku !== 'N/D') {
                     if (!currentReportCounts[sku]) currentReportCounts[sku] = 0;
                     currentReportCounts[sku] += qty;
                 }
 
-                const inv = inventoryImageMap.get(sku) || { imageUrl: '', scaffale: 'N/D', brand: 'N/D' };
+                // --- LOGICA A PONTE ---
+                // 1. Ho lo SKU (dagli ordini)
+                // 2. Cerco l'ASIN corrispondente
+                const asin = skuToAsinMap.get(sku);
+                
+                // 3. Uso l'ASIN per trovare i dati in magazzino (oppure N/D se non trovato)
+                let inv = { imageUrl: '', scaffale: 'N/D', brand: 'N/D' };
+                if (asin && inventoryDataMap.has(asin)) {
+                    inv = inventoryDataMap.get(asin);
+                } else if (!asin) {
+                    // Fallback opzionale: se non c'è mapping SKU->ASIN, potremmo segnalarlo
+                    // console.log("ASIN mancante per SKU:", sku); 
+                }
 
                 const item = {
                     articolo: cols[mapping.ITEM_TITLE] || 'N/D',
-                    sku: sku,
+                    sku: sku, // Mostriamo ancora lo SKU Temu originale
+                    asin: asin || 'N/D', // Salviamo anche l'ASIN per riferimento
                     qty: qty,
                     imageUrl: inv.imageUrl,
                     scaffale: inv.scaffale,
@@ -361,7 +393,7 @@
                         const totalSold = reportStats[sku] || 0;
                         sidebarHtml += `
                             <tr class="border-b border-gray-100 last:border-0">
-                                <td class="py-2 text-brand-orange font-bold">${sku}</td>
+                                <td class="py-2 text-brand-orange font-bold text-xs md:text-sm">${sku}</td>
                                 <td class="py-2 text-right font-bold text-gray-700 text-lg">${totalSold}</td>
                             </tr>`;
                     }
