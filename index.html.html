@@ -87,7 +87,7 @@
             <div id="status-message" class="p-8 text-center bg-white rounded-2xl shadow-lg">
                 <div class="flex flex-col items-center justify-center space-y-4">
                     <span class="loader"></span>
-                    <span class="text-gray-500 font-medium">Caricamento ordini e magazzino...</span>
+                    <span class="text-gray-500 font-medium" id="loading-text">Caricamento ordini e magazzino...</span>
                 </div>
             </div>
 
@@ -121,41 +121,32 @@
 
     <script>
         // --- CONFIGURAZIONE ---
-        
-        // 1. ID CORRETTO (dallo link condiviso: Qh e K)
         const SHEET_ID_ORDINI = "1Qjj9QhNw4unnUV3t2kNP9j3K-usHzw-MCQ3laUrwqos";
         
-        // 2. NOMI DELLE SCHEDE
         const NOMI_SCHEDE = [
             "GERMANIA", "FRANCIA", "ITALIA", "PAESI BASSI", "SPAGNA", 
             "BELGIO", "AUSTRIA", "REP. CECA", "UNGHERIA", "PORTOGALLO", 
             "DANIMARCA", "POLONIA"
         ];
 
-        // Creazione link API
-        const ORDER_SHEET_URLS = NOMI_SCHEDE.map(nome => 
-            `https://docs.google.com/spreadsheets/d/${SHEET_ID_ORDINI}/gviz/tq?tqx=out:csv&sheet=${encodeURIComponent(nome)}`
-        );
-
         // URL Magazzino
         const INVENTORY_CSV_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQLf2HBC2g4q3L-hER7WPpYixWIIqJyV6MAkWm4ENZlQNrLxbroZRP3HBZ7Uzl510OVON8q590_YH_S/pub?gid=938359466&single=true&output=csv';
 
-        // --- MAPPATURA COLONNE AGGIORNATA (Nuovo Report Temu) ---
-        // A=0, H=7, K=10, M=12, AI=34
+        // --- MAPPATURA COLONNE ---
         const ORDERS_COLS = {
             A_ORDINE_ID: 0, 
-            H_ARTICOLO: 7,      // Colonna H: Titolo prodotto
-            K_SKU_GLS: 10,      // Colonna K: SKU (Nuova posizione)
-            M_QTY: 12,          // Colonna M: Quantità (Nuova posizione, prima era L)
-            O_CLIENTE: 15,      // Colonna O: Cliente (Verificare se corretto, mantenuto 14)
-            AI_TRACKING: 34     // Colonna AI: Tracking (Nuova posizione)
+            H_ARTICOLO: 7, 
+            K_SKU_GLS: 10, 
+            M_QTY: 12, 
+            O_CLIENTE: 15,
+            AI_TRACKING: 34     
         };
 
         const INVENTORY_COLS = {
             C_SKU_GLS: 2, F_BRAND: 5, I_SCAFFALE: 8, AB_IMG_URL: 27
         };
 
-        let searchBox, statusMessage, ordersContainer, perfTimer, sidebarContainer, sidebarTbody, mainLayout;
+        let searchBox, statusMessage, loadingText, ordersContainer, perfTimer, sidebarContainer, sidebarTbody, mainLayout;
         let allGroupedOrders = [];
         let inventoryImageMap = new Map();
         let trackingIndex = new Map();
@@ -165,6 +156,7 @@
         document.addEventListener('DOMContentLoaded', () => {
             searchBox = document.getElementById('search-box');
             statusMessage = document.getElementById('status-message');
+            loadingText = document.getElementById('loading-text');
             ordersContainer = document.getElementById('orders-container');
             perfTimer = document.getElementById('perf-timer');
             sidebarContainer = document.getElementById('sidebar-container');
@@ -186,39 +178,43 @@
 
         async function loadAllData() {
             try {
-                const fetchPromises = [fetch(INVENTORY_CSV_URL)];
-                ORDER_SHEET_URLS.forEach(url => fetchPromises.push(fetch(url)));
-
-                const results = await Promise.allSettled(fetchPromises);
-
-                const inventoryResult = results[0];
-                if (inventoryResult.status === 'fulfilled' && inventoryResult.value.ok) {
-                    const inventoryCsvText = await inventoryResult.value.text();
-                    createInventoryMap(inventoryCsvText);
+                // 1. Carica Magazzino (Veloce)
+                const invResponse = await fetch(INVENTORY_CSV_URL);
+                if (invResponse.ok) {
+                    const invText = await invResponse.text();
+                    createInventoryMap(invText);
                 } else {
-                    console.error("Errore Magazzino.");
+                    console.error("Errore Magazzino");
                 }
-                
+
                 const allOrdersMap = new Map();
                 let ordersLoadedCount = 0;
-                skuCountsByReport = new Array(ORDER_SHEET_URLS.length).fill(null);
+                skuCountsByReport = new Array(NOMI_SCHEDE.length).fill(null);
 
-                for (let i = 1; i < results.length; i++) {
-                    const orderResult = results[i];
-                    const reportIndex = i - 1;
-
-                    if (orderResult.status === 'fulfilled' && orderResult.value.ok) {
-                        const orderCsvText = await orderResult.value.text();
-                        skuCountsByReport[reportIndex] = {}; 
-                        processOrdersCsv(orderCsvText, allOrdersMap, reportIndex);
-                        ordersLoadedCount++;
-                    } else {
-                        console.warn(`Impossibile leggere la scheda: ${NOMI_SCHEDE[reportIndex]}`);
+                // 2. Carica Ordini IN SEQUENZA (Per evitare blocchi Google)
+                for (let i = 0; i < NOMI_SCHEDE.length; i++) {
+                    const nome = NOMI_SCHEDE[i];
+                    loadingText.textContent = `Caricamento ${nome}... (${i+1}/${NOMI_SCHEDE.length})`;
+                    
+                    const url = `https://docs.google.com/spreadsheets/d/${SHEET_ID_ORDINI}/gviz/tq?tqx=out:csv&sheet=${encodeURIComponent(nome)}`;
+                    
+                    try {
+                        const response = await fetch(url);
+                        if (response.ok) {
+                            const csvText = await response.text();
+                            skuCountsByReport[i] = {}; 
+                            processOrdersCsv(csvText, allOrdersMap, i);
+                            ordersLoadedCount++;
+                        } else {
+                            console.warn(`Errore caricamento ${nome}: ${response.status}`);
+                        }
+                    } catch (e) {
+                        console.warn(`Eccezione caricamento ${nome}`, e);
                     }
                 }
 
                 if (ordersLoadedCount === 0) {
-                    throw new Error('Nessun dato ordini caricato. Verifica ID foglio e permessi.');
+                    throw new Error('Nessun dato ordini caricato. Controlla ID e permessi.');
                 }
 
                 allGroupedOrders = Array.from(allOrdersMap.values());
@@ -270,14 +266,13 @@
 
             lines.forEach(line => {
                 const cols = parseCSVLine(line);
-                // Controllo se la riga è lunga abbastanza per arrivare alla colonna AI (34)
                 if (cols.length <= ORDERS_COLS.AI_TRACKING) return;
 
                 const orderId = cols[ORDERS_COLS.A_ORDINE_ID];
                 if (!orderId) return;
 
-                const sku = cols[ORDERS_COLS.K_SKU_GLS] || 'N/D'; // Usa Colonna K
-                const qty = parseInt(cols[ORDERS_COLS.M_QTY]) || 0; // Usa Colonna M
+                const sku = cols[ORDERS_COLS.K_SKU_GLS] || 'N/D'; 
+                const qty = parseInt(cols[ORDERS_COLS.M_QTY]) || 0; 
 
                 if (sku !== 'N/D') {
                     if (!currentReportCounts[sku]) currentReportCounts[sku] = 0;
@@ -300,8 +295,8 @@
                 } else {
                     ordersMap.set(orderId, {
                         orderId: orderId,
-                        cliente: cols[ORDERS_COLS.O_CLIENTE] || 'N/D',
-                        tracking: cols[ORDERS_COLS.AI_TRACKING] || 'N/D', // Usa Colonna AI
+                        cliente: cols[ORDERS_COLS.O_CLIENTE] || 'N/D', 
+                        tracking: cols[ORDERS_COLS.AI_TRACKING] || 'N/D', 
                         reportIndex: reportIndex,
                         items: [item]
                     });
@@ -445,4 +440,3 @@
     </script>
 </body>
 </html>
-
