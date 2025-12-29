@@ -120,24 +120,24 @@
     </div>
 
     <script>
-        // --- NUOVA CONFIGURAZIONE ROBUSTA ---
+        // --- CONFIGURAZIONE ---
         
-        // 1. ID DEL FOGLIO ORDINI (Preso dal tuo screenshot)
-        const SHEET_ID_ORDINI = "1Qjj9QHnW4unnUV3t2kNP9j3k-usHzw-MCQ3laUrwqos";
+        // 1. ID DEL FOGLIO ORDINI (Corretto dal tuo link: K maiuscola e h minuscola)
+        const SHEET_ID_ORDINI = "1Qjj9QhNw4unnUV3t2kNP9j3K-usHzw-MCQ3laUrwqos";
         
-        // 2. NOMI DELLE SCHEDE DA LEGGERE (Esattamente come nel foglio Google)
+        // 2. NOMI DELLE SCHEDE (Esattamente come nel foglio)
         const NOMI_SCHEDE = [
             "GERMANIA", "FRANCIA", "ITALIA", "PAESI BASSI", "SPAGNA", 
             "BELGIO", "AUSTRIA", "REP. CECA", "UNGHERIA", "PORTOGALLO", 
-            "DANIMARCA", "POLONIA" // Ho aggiunto Polonia se serve, altrimenti rimuovila
+            "DANIMARCA", "POLONIA"
         ];
 
-        // Generazione automatica dei link sicuri (API GVIZ)
+        // Creazione link API
         const ORDER_SHEET_URLS = NOMI_SCHEDE.map(nome => 
             `https://docs.google.com/spreadsheets/d/${SHEET_ID_ORDINI}/gviz/tq?tqx=out:csv&sheet=${encodeURIComponent(nome)}`
         );
 
-        // URL Magazzino (Se anche questo non va, fammi sapere l'ID del file Magazzino)
+        // URL Magazzino (File separato)
         const INVENTORY_CSV_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQLf2HBC2g4q3L-hER7WPpYixWIIqJyV6MAkWm4ENZlQNrLxbroZRP3HBZ7Uzl510OVON8q590_YH_S/pub?gid=938359466&single=true&output=csv';
 
         const ORDERS_COLS = {
@@ -179,28 +179,26 @@
 
         async function loadAllData() {
             try {
-                // Fetch Magazzino + Tutti gli ordini
+                // Fetch Magazzino + Ordini
                 const fetchPromises = [fetch(INVENTORY_CSV_URL)];
                 ORDER_SHEET_URLS.forEach(url => fetchPromises.push(fetch(url)));
 
                 const results = await Promise.allSettled(fetchPromises);
 
-                // Gestione Magazzino
+                // 1. Magazzino
                 const inventoryResult = results[0];
                 if (inventoryResult.status === 'fulfilled' && inventoryResult.value.ok) {
                     const inventoryCsvText = await inventoryResult.value.text();
                     createInventoryMap(inventoryCsvText);
                 } else {
-                    // Se il magazzino fallisce, prova a continuare ma logga l'errore
                     console.error("Errore Magazzino: Link scaduto o bloccato.");
-                    // Non blocco tutto, ma le immagini/scaffali non si vedranno
                 }
                 
                 const allOrdersMap = new Map();
                 let ordersLoadedCount = 0;
                 skuCountsByReport = new Array(ORDER_SHEET_URLS.length).fill(null);
 
-                // Gestione Ordini (partono dall'indice 1)
+                // 2. Ordini (da index 1)
                 for (let i = 1; i < results.length; i++) {
                     const orderResult = results[i];
                     const reportIndex = i - 1;
@@ -216,7 +214,7 @@
                 }
 
                 if (ordersLoadedCount === 0) {
-                    throw new Error('Nessun dato ordini caricato. Controlla i permessi di condivisione del foglio.');
+                    throw new Error('Nessun dato ordini caricato. Verifica ID foglio e permessi.');
                 }
 
                 allGroupedOrders = Array.from(allOrdersMap.values());
@@ -229,9 +227,7 @@
             } catch (error) {
                 console.error(error);
                 statusMessage.innerHTML = `<div class="text-red-600 font-medium text-left p-4">
-                    Errore: ${error.message}<br><br>
-                    1. Assicurati che il file Ordini sia condiviso con "Chiunque abbia il link".<br>
-                    2. Controlla che i nomi delle schede nel codice (GERMANIA, FRANCIA...) siano identici a quelli nel foglio.
+                    Errore: ${error.message}
                 </div>`;
             }
         }
@@ -250,7 +246,6 @@
             lines.shift();
             lines.forEach(line => {
                 const cols = parseCSVLine(line);
-                // Controllo se la riga ha abbastanza colonne per evitare errori
                 if (cols.length > INVENTORY_COLS.C_SKU_GLS) {
                     const sku = cols[INVENTORY_COLS.C_SKU_GLS];
                     if (sku) {
@@ -271,7 +266,6 @@
 
             lines.forEach(line => {
                 const cols = parseCSVLine(line);
-                // Controllo base validità riga
                 if (cols.length < ORDERS_COLS.AH_TRACKING) return;
 
                 const orderId = cols[ORDERS_COLS.A_ORDINE_ID];
@@ -280,7 +274,6 @@
                 const sku = cols[ORDERS_COLS.J_SKU_GLS] || 'N/D';
                 const qty = parseInt(cols[ORDERS_COLS.L_QTY]) || 0;
 
-                // Calcolo Totali
                 if (sku !== 'N/D') {
                     if (!currentReportCounts[sku]) currentReportCounts[sku] = 0;
                     currentReportCounts[sku] += qty;
