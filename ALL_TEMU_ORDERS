@@ -1,0 +1,254 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ricerca Vendite Temu</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f4f6f8;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+        }
+
+        .container {
+            background: white;
+            padding: 2rem;
+            border-radius: 15px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+            width: 90%;
+            max-width: 450px;
+            text-align: center;
+        }
+
+        h1 {
+            color: #333;
+            font-size: 1.5rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .input-group {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+
+        input {
+            flex: 1;
+            padding: 12px;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            font-size: 16px;
+            outline: none;
+            transition: border-color 0.3s;
+        }
+
+        input:focus {
+            border-color: #fb7701; /* Colore simile a Temu */
+        }
+
+        button {
+            background-color: #fb7701;
+            color: white;
+            border: none;
+            padding: 12px 20px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: bold;
+            font-size: 16px;
+            transition: background 0.3s;
+        }
+
+        button:hover {
+            background-color: #e06a00;
+        }
+
+        button:disabled {
+            background-color: #ccc;
+            cursor: not-allowed;
+        }
+
+        #result-box {
+            margin-top: 20px;
+            padding: 20px;
+            border-radius: 10px;
+            background-color: #e8f5e9;
+            color: #2e7d32;
+            display: none; /* Nascosto all'inizio */
+            animation: fadeIn 0.5s;
+        }
+
+        .label {
+            font-size: 0.9rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            opacity: 0.8;
+        }
+
+        .number {
+            font-size: 3.5rem;
+            font-weight: 800;
+            line-height: 1.2;
+            margin: 10px 0;
+        }
+
+        .error {
+            background-color: #ffebee;
+            color: #c62828;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .loader {
+            display: none;
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #fb7701;
+            border-radius: 50%;
+            width: 20px;
+            height: 20px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto;
+        }
+
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <h1>📊 Cerca Vendite SKU</h1>
+        
+        <div class="input-group">
+            <input type="text" id="skuInput" placeholder="Inserisci Codice SKU..." onkeypress="handleEnter(event)">
+            <button onclick="calcolaVendite()" id="btnSearch">Cerca</button>
+        </div>
+
+        <div class="loader" id="loader"></div>
+
+        <div id="result-box">
+            <div class="label">Totale Venduto</div>
+            <div class="number" id="totalQty">0</div>
+            <div class="label" id="skuDisplay"></div>
+        </div>
+    </div>
+
+    <script>
+        // URL del tuo Foglio Google pubblicato come CSV
+        const CSV_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vSIRX2of-3t_4Z9U0X8Vy7yBHkaDXkpxqHnb3rP1GrFegKACJMRzKdQQrF2Yx3ZsnsyjZ78xHtS9SqO/pub?gid=1855947431&single=true&output=csv';
+
+        // Nomi esatti delle colonne nel tuo foglio (Case Sensitive)
+        const COL_SKU = "Codice SKU";
+        const COL_QTY = "quantità acquistata";
+
+        function handleEnter(e) {
+            if (e.key === 'Enter') calcolaVendite();
+        }
+
+        function calcolaVendite() {
+            const skuToSearch = document.getElementById('skuInput').value.trim();
+            const resultBox = document.getElementById('result-box');
+            const loader = document.getElementById('loader');
+            const btn = document.getElementById('btnSearch');
+
+            if (!skuToSearch) {
+                alert("Inserisci un codice SKU!");
+                return;
+            }
+
+            // Reset UI
+            resultBox.style.display = 'none';
+            resultBox.classList.remove('error');
+            resultBox.style.backgroundColor = '#e8f5e9';
+            resultBox.style.color = '#2e7d32';
+            loader.style.display = 'block';
+            btn.disabled = true;
+
+            // Usa PapaParse per leggere il CSV remoto
+            Papa.parse(CSV_URL, {
+                download: true,
+                header: true, // Usa la prima riga come intestazione
+                skipEmptyLines: true,
+                complete: function(results) {
+                    loader.style.display = 'none';
+                    btn.disabled = false;
+                    
+                    if (results.errors.length > 0 && results.data.length === 0) {
+                        showError("Errore nel caricamento dei dati.");
+                        console.error(results.errors);
+                        return;
+                    }
+
+                    elaboraDati(results.data, skuToSearch);
+                },
+                error: function(err) {
+                    loader.style.display = 'none';
+                    btn.disabled = false;
+                    showError("Impossibile connettersi al Foglio Google.");
+                }
+            });
+        }
+
+        function elaboraDati(data, skuCercato) {
+            let totale = 0;
+            let found = false;
+            
+            // Normalizza la ricerca (minuscolo per evitare problemi di maiuscole/minuscole)
+            const searchKey = skuCercato.toLowerCase();
+
+            data.forEach(row => {
+                // Preleva il valore della colonna SKU e Quantità
+                // Usiamo trim() per rimuovere spazi accidentali nel CSV
+                let rowSku = row[COL_SKU] ? row[COL_SKU].trim().toLowerCase() : "";
+                let rowQty = row[COL_QTY];
+
+                if (rowSku === searchKey) {
+                    // Converti la quantità in numero (gestisce stringhe tipo "1" o "10")
+                    let q = parseInt(rowQty);
+                    if (!isNaN(q)) {
+                        totale += q;
+                        found = true;
+                    }
+                }
+            });
+
+            mostraRisultato(totale, skuCercato, found);
+        }
+
+        function mostraRisultato(totale, sku, found) {
+            const resultBox = document.getElementById('result-box');
+            const totalQtyDiv = document.getElementById('totalQty');
+            const skuDisplayDiv = document.getElementById('skuDisplay');
+
+            if (totale === 0 && !found) {
+                // SKU non trovato nel file
+                resultBox.style.backgroundColor = '#fff3e0';
+                resultBox.style.color = '#e65100';
+                totalQtyDiv.innerText = "0";
+                skuDisplayDiv.innerText = `Nessun ordine trovato per SKU: ${sku}`;
+            } else {
+                // Trovato
+                totalQtyDiv.innerText = totale;
+                skuDisplayDiv.innerText = `Prodotti totali per SKU: ${sku}`;
+            }
+
+            resultBox.style.display = 'block';
+        }
+
+        function showError(msg) {
+            const resultBox = document.getElementById('result-box');
+            resultBox.classList.add('error');
+            document.getElementById('totalQty').innerText = "Errore";
+            document.getElementById('skuDisplay').innerText = msg;
+            resultBox.style.display = 'block';
+        }
+    </script>
+</body>
+</html>
