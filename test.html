@@ -87,7 +87,7 @@
             <div id="status-message" class="p-8 text-center bg-white rounded-2xl shadow-lg">
                 <div class="flex flex-col items-center justify-center space-y-4">
                     <span class="loader"></span>
-                    <span class="text-gray-500 font-medium" id="loading-text">Caricamento dati...</span>
+                    <span class="text-gray-500 font-medium" id="loading-text">Caricamento ordini e magazzino...</span>
                 </div>
             </div>
 
@@ -133,32 +133,27 @@
             `https://docs.google.com/spreadsheets/d/${SHEET_ID_ORDINI}/gviz/tq?tqx=out:csv&sheet=${encodeURIComponent(nome)}`
         );
 
-        // URL SYNC PRODOTTI (Ponte tra SKU e ASIN)
         const SYNC_PRODOTTI_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQLf2HBC2g4q3L-hER7WPpYixWIIqJyV6MAkWm4ENZlQNrLxbroZRP3HBZ7Uzl510OVON8q590_YH_S/pub?gid=940187269&single=true&output=csv';
-
-        // URL MAGAZZINO (Info finali tramite ASIN)
         const INVENTORY_CSV_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQLf2HBC2g4q3L-hER7WPpYixWIIqJyV6MAkWm4ENZlQNrLxbroZRP3HBZ7Uzl510OVON8q590_YH_S/pub?gid=938359466&single=true&output=csv';
 
-        // MAPPATURE
-        const MAP_OLD = { ORDER_ID: 0, ITEM_TITLE: 7, SKU: 9, QTY: 11, CLIENT: 14, TRACKING: 33 };
-        const MAP_NEW = { ORDER_ID: 0, ITEM_TITLE: 7, SKU: 10, QTY: 12, CLIENT: 15, TRACKING: 34 };
-
-        // SYNC: Colonna A = ASIN (0), Colonna B = SKU (1)
-        const SYNC_COLS = { ASIN: 0, SKU: 1 };
-
-        // MAGAZZINO: Colonna A = ASIN (0), il resto uguale
-        const INVENTORY_COLS = { 
-            ASIN: 0, // Chiave di ricerca nel magazzino
-            F_BRAND: 5, 
-            I_SCAFFALE: 8, 
-            AB_IMG_URL: 27 
+        // --- DEFINIZIONE COLONNE ---
+        // Definiamo i POSSIBILI indici per ogni dato, così cerchiamo in entrambi i posti.
+        const COLS_POSSIBLE = {
+            TRACKING: [33, 34], // AH o AI
+            SKU: [9, 10],       // J o K
+            QTY: [11, 12],      // L o M
+            CLIENT: [14, 15],   // O o P
+            ORDER_ID: 0,
+            ITEM_TITLE: 7
         };
 
-        // --- VARIABILI GLOBALI ---
+        const SYNC_COLS = { ASIN: 0, SKU: 1 };
+        const INVENTORY_COLS = { ASIN: 0, F_BRAND: 5, I_SCAFFALE: 8, AB_IMG_URL: 27 };
+
         let searchBox, statusMessage, loadingText, ordersContainer, perfTimer, sidebarContainer, sidebarTbody, mainLayout;
         let allGroupedOrders = [];
-        let inventoryDataMap = new Map(); // Mappa finale: ASIN -> Dati Magazzino
-        let skuToAsinMap = new Map();     // Mappa ponte: SKU -> ASIN
+        let inventoryDataMap = new Map();
+        let skuToAsinMap = new Map();
         let trackingIndex = new Map();
         let skuCountsByReport = [];
         let searchStartTime = 0;
@@ -185,34 +180,26 @@
             loadAllData();
         });
 
+        function normalizeTracking(code) {
+            if (!code) return "";
+            return code.toString().replace(/[^a-zA-Z0-9]/g, "").toUpperCase();
+        }
+
         async function loadAllData() {
             try {
-                // 1. Carica SYNC PRODOTTI (SKU -> ASIN)
-                loadingText.textContent = "Caricamento tabella di conversione...";
                 const syncResponse = await fetch(SYNC_PRODOTTI_URL);
-                if (syncResponse.ok) {
-                    createSkuToAsinMap(await syncResponse.text());
-                } else {
-                    console.error("Errore Sync Prodotti");
-                }
+                if (syncResponse.ok) createSkuToAsinMap(await syncResponse.text());
 
-                // 2. Carica MAGAZZINO (ASIN -> Dati)
-                loadingText.textContent = "Caricamento magazzino...";
                 const invResponse = await fetch(INVENTORY_CSV_URL);
-                if (invResponse.ok) {
-                    createInventoryMap(await invResponse.text());
-                } else {
-                    console.error("Errore Magazzino");
-                }
+                if (invResponse.ok) createInventoryMap(await invResponse.text());
 
                 const allOrdersMap = new Map();
                 let ordersLoadedCount = 0;
                 skuCountsByReport = new Array(NOMI_SCHEDE.length).fill(null);
 
-                // 3. Carica ORDINI
                 for (let i = 0; i < NOMI_SCHEDE.length; i++) {
                     const nome = NOMI_SCHEDE[i];
-                    loadingText.textContent = `Caricamento ordini ${nome}... (${i+1}/${NOMI_SCHEDE.length})`;
+                    loadingText.textContent = `Caricamento ${nome}... (${i+1}/${NOMI_SCHEDE.length})`;
                     
                     try {
                         const response = await fetch(ORDER_SHEET_URLS[i]);
@@ -240,28 +227,23 @@
             }
         }
 
-        // --- MAPPA PONTE: SKU -> ASIN ---
         function createSkuToAsinMap(csvText) {
             const lines = csvText.trim().split('\n');
-            lines.shift(); // Skip header
+            lines.shift(); 
             lines.forEach(line => {
                 const cols = parseCSVLine(line);
                 const asin = cols[SYNC_COLS.ASIN];
                 const sku = cols[SYNC_COLS.SKU];
-                if (asin && sku) {
-                    // Normalizziamo lo SKU (trim) per evitare problemi di spazi
-                    skuToAsinMap.set(sku.trim(), asin.trim());
-                }
+                if (asin && sku) skuToAsinMap.set(sku.trim(), asin.trim());
             });
         }
 
-        // --- MAPPA DATI: ASIN -> INFO ---
         function createInventoryMap(csvText) {
             const lines = csvText.trim().split('\n');
             lines.shift();
             lines.forEach(line => {
                 const cols = parseCSVLine(line);
-                const asin = cols[INVENTORY_COLS.ASIN]; // Colonna A del magazzino
+                const asin = cols[INVENTORY_COLS.ASIN];
                 if (asin) {
                     inventoryDataMap.set(asin.trim(), { 
                         imageUrl: cols[INVENTORY_COLS.AB_IMG_URL] || '',
@@ -276,11 +258,12 @@
             trackingIndex.clear();
             allGroupedOrders.forEach(order => {
                 if (order.tracking) {
-                    trackingIndex.set(order.tracking.toLowerCase().trim(), order);
+                    trackingIndex.set(normalizeTracking(order.tracking), order);
                 }
             });
         }
 
+        // --- NUOVA LOGICA DI PROCESSAMENTO MULTI-COLONNA ---
         function processOrdersCsv(csvText, ordersMap, reportIndex) {
             const lines = csvText.trim().split('\n');
             lines.shift(); 
@@ -288,21 +271,44 @@
 
             lines.forEach(line => {
                 const cols = parseCSVLine(line);
-                
-                // Rilevamento automatico formato (AH vs AI)
-                let mapping = MAP_OLD;
-                const col34 = cols[34] ? cols[34].trim() : "";
-                if (col34.length > 5 && !col34.includes("€") && !col34.includes(".")) {
-                    mapping = MAP_NEW;
+                if (cols.length < 33) return; // Salta righe troppo corte
+
+                // 1. TROVA IL TRACKING (Cerca in colonna 33 O 34)
+                let tracking = null;
+                // Prova colonna 34 (AI) - Nuovo formato
+                let t34 = cols[34] ? cols[34].trim() : "";
+                if (t34.length > 5 && !t34.includes("€")) {
+                    tracking = t34;
+                } else {
+                    // Prova colonna 33 (AH) - Vecchio formato
+                    let t33 = cols[33] ? cols[33].trim() : "";
+                    if (t33.length > 5 && !t33.includes("€")) {
+                        tracking = t33;
+                    }
                 }
 
-                if (cols.length <= mapping.TRACKING) return;
+                // Se non trovi un tracking valido in nessuna delle due, salta la riga
+                // Nota: In alcuni report il tracking potrebbe mancare, ma se c'è l'ordine lo processiamo lo stesso
+                // se riusciamo a trovare gli altri dati. Per ora assumiamo che il tracking serva per l'app.
+                
+                // Determina offset colonne in base a dove abbiamo trovato il tracking
+                // Se tracking è in 34 (nuovo), SKU è in 10. Se è in 33 (vecchio), SKU è in 9.
+                let skuIdx = 9;
+                let qtyIdx = 11;
+                let clientIdx = 14;
 
-                const orderId = cols[mapping.ORDER_ID];
+                if (tracking === cols[34]?.trim()) {
+                    skuIdx = 10;
+                    qtyIdx = 12;
+                    clientIdx = 15;
+                }
+
+                const orderId = cols[COLS_POSSIBLE.ORDER_ID];
                 if (!orderId) return;
 
-                const sku = cols[mapping.SKU] ? cols[mapping.SKU].trim() : 'N/D';
-                const qty = parseInt(cols[mapping.QTY]) || 0;
+                const sku = cols[skuIdx] ? cols[skuIdx].trim() : 'N/D';
+                const qty = parseInt(cols[qtyIdx]) || 0;
+                const cliente = cols[clientIdx] || 'N/D';
 
                 // Calcolo Totali per Report
                 if (sku !== 'N/D') {
@@ -310,24 +316,16 @@
                     currentReportCounts[sku] += qty;
                 }
 
-                // --- LOGICA A PONTE ---
-                // 1. Ho lo SKU (dagli ordini)
-                // 2. Cerco l'ASIN corrispondente
                 const asin = skuToAsinMap.get(sku);
-                
-                // 3. Uso l'ASIN per trovare i dati in magazzino (oppure N/D se non trovato)
                 let inv = { imageUrl: '', scaffale: 'N/D', brand: 'N/D' };
                 if (asin && inventoryDataMap.has(asin)) {
                     inv = inventoryDataMap.get(asin);
-                } else if (!asin) {
-                    // Fallback opzionale: se non c'è mapping SKU->ASIN, potremmo segnalarlo
-                    // console.log("ASIN mancante per SKU:", sku); 
                 }
 
                 const item = {
-                    articolo: cols[mapping.ITEM_TITLE] || 'N/D',
-                    sku: sku, // Mostriamo ancora lo SKU Temu originale
-                    asin: asin || 'N/D', // Salviamo anche l'ASIN per riferimento
+                    articolo: cols[COLS_POSSIBLE.ITEM_TITLE] || 'N/D',
+                    sku: sku,
+                    asin: asin || 'N/D',
                     qty: qty,
                     imageUrl: inv.imageUrl,
                     scaffale: inv.scaffale,
@@ -339,8 +337,8 @@
                 } else {
                     ordersMap.set(orderId, {
                         orderId: orderId,
-                        cliente: cols[mapping.CLIENT] || 'N/D',
-                        tracking: cols[mapping.TRACKING] || 'N/D',
+                        cliente: cliente,
+                        tracking: tracking || 'N/D',
                         reportIndex: reportIndex,
                         items: [item]
                     });
@@ -350,14 +348,17 @@
 
         function renderOrders() {
             let rawInput = searchBox.value.trim();
-            let searchTerm = rawInput.toLowerCase();
-            if (rawInput.length > 30) searchTerm = rawInput.slice(-12).toLowerCase();
+            let cleanInput = normalizeTracking(rawInput);
+
+            if (cleanInput.length > 30) cleanInput = cleanInput.slice(-12);
 
             let filteredOrders = [];
-            if (trackingIndex.has(searchTerm)) {
-                filteredOrders = [trackingIndex.get(searchTerm)];
-            } else if (searchTerm.length > 0) {
-                filteredOrders = allGroupedOrders.filter(o => o.tracking && o.tracking.toLowerCase().includes(searchTerm));
+            if (trackingIndex.has(cleanInput)) {
+                filteredOrders = [trackingIndex.get(cleanInput)];
+            } else if (cleanInput.length > 0) {
+                filteredOrders = allGroupedOrders.filter(o => 
+                    o.tracking && normalizeTracking(o.tracking).includes(cleanInput)
+                );
             }
 
             ordersContainer.innerHTML = '';
@@ -367,8 +368,8 @@
             sidebarContainer.classList.add('hidden'); 
 
             if (filteredOrders.length === 0) {
-                if (searchTerm.length > 0) {
-                    statusMessage.innerHTML = `<div class="p-8 text-center text-gray-500">Nessun ordine trovato.</div>`;
+                if (cleanInput.length > 0) {
+                    statusMessage.innerHTML = `<div class="p-8 text-center text-gray-500">Nessun ordine trovato per: ${rawInput}</div>`;
                     statusMessage.classList.remove('hidden');
                 } else if (!document.querySelector('.loader')) {
                     statusMessage.innerHTML = `<div class="p-8 text-center text-gray-500">Inserisci un codice.</div>`;
