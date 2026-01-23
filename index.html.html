@@ -83,7 +83,6 @@
     <script>
         const SHEET_ID_ORDINI = "1Qjj9QhNw4unnUV3t2kNP9j3K-usHzw-MCQ3laUrwqos";
         
-        // Aggiunta la scheda AMAZON alla lista
         const NOMI_SCHEDE = [
             "GERMANIA", "FRANCIA", "ITALIA", "PAESI BASSI", "SPAGNA", 
             "BELGIO", "AUSTRIA", "REP. CECA", "UNGHERIA", "PORTOGALLO", 
@@ -102,7 +101,6 @@
         const MAP_TEMU_NEW = { ORDER_ID: 0, ITEM_TITLE: 7, SKU: 10, QTY: 12, CLIENT: 15, TRACKING: 34 };
 
         // --- MAPPATURA AMAZON ---
-        // A=0, B=1 ... L=11, M=12, O=14, P=15, R=17
         const MAP_AMAZON = {
             ORDER_ID: 11,   // Colonna L
             TRACKING: 12,   // Colonna M
@@ -217,41 +215,30 @@
             lines.shift(); 
             let currentReportCounts = skuCountsByReport[reportIndex];
             
-            // Controlla se stiamo processando la scheda AMAZON
             const isAmazon = NOMI_SCHEDE[reportIndex] === "AMAZON";
 
             lines.forEach(line => {
                 const cols = parseCSVLine(line);
-                
                 let orderId, sku, qty, cliente, tracking, itemTitle;
 
                 if (isAmazon) {
-                    // --- LOGICA AMAZON ---
-                    if (cols.length <= 17) return; // Controllo lunghezza minima per Amazon
-
+                    if (cols.length <= 17) return; 
                     orderId = cols[MAP_AMAZON.ORDER_ID];
                     sku = cols[MAP_AMAZON.SKU] ? cols[MAP_AMAZON.SKU].trim() : 'N/D';
                     qty = parseInt(cols[MAP_AMAZON.QTY]) || 0;
                     cliente = cols[MAP_AMAZON.CLIENT] || 'N/D';
                     tracking = cols[MAP_AMAZON.TRACKING] ? cols[MAP_AMAZON.TRACKING].trim() : 'N/D';
                     itemTitle = cols[MAP_AMAZON.ITEM_TITLE] || 'N/D';
-
                 } else {
-                    // --- LOGICA TEMU (DINAMICA) ---
                     if (cols.length < 15) return;
-
-                    // 1. Tracking Temu
                     tracking = null;
                     const trackingCandidates = [33, 34, 35];
                     for (let idx of trackingCandidates) {
                         let val = cols[idx] ? cols[idx].trim() : "";
                         if (val.length > 5 && !val.includes("€") && !val.includes(".")) {
-                            tracking = val;
-                            break;
+                            tracking = val; break;
                         }
                     }
-
-                    // 2. SKU Temu
                     sku = 'N/D';
                     const skuCandidates = [9, 10, 11];
                     for (let idx of skuCandidates) {
@@ -260,44 +247,33 @@
                              if (!/^\d{8,}$/.test(val)) { sku = val; break; }
                         }
                     }
-
-                    // 3. Qty Temu
                     qty = 0;
                     const qtyCandidates = [11, 12, 13];
                     for (let idx of qtyCandidates) {
                         let val = cols[idx] ? cols[idx].trim() : "";
                         if (val && !isNaN(val) && val.length < 4) {
-                            qty = parseInt(val);
-                            break;
+                            qty = parseInt(val); break;
                         }
                     }
-
-                    // 4. Cliente Temu
                     cliente = 'N/D';
                     const clientCandidates = [14, 15, 16];
                     for (let idx of clientCandidates) {
                         let val = cols[idx] ? cols[idx].trim() : "";
                         if (val && val.length > 2 && isNaN(val)) {
-                            cliente = val;
-                            break;
+                            cliente = val; break;
                         }
                     }
-
                     orderId = cols[0];
                     itemTitle = cols[7] || 'N/D';
                 }
 
                 if (!orderId) return;
 
-                // --- LOGICA COMUNE (PONTE) ---
-                
-                // Aggiorna contatori
                 if (sku !== 'N/D') {
                     if (!currentReportCounts[sku]) currentReportCounts[sku] = 0;
                     currentReportCounts[sku] += qty;
                 }
 
-                // Recupera dati Magazzino tramite Ponte ASIN
                 const asin = skuToAsinMap.get(sku);
                 let inv = { imageUrl: '', scaffale: 'N/D', brand: 'N/D' };
                 if (asin && inventoryDataMap.has(asin)) {
@@ -331,6 +307,13 @@
         function renderOrders() {
             let rawInput = searchBox.value.trim();
             let cleanInput = normalizeTracking(rawInput);
+
+            // --- FILTRO: 1790xxxx -> rimuove ultimi 3 caratteri ---
+            if (cleanInput.startsWith("1790")) {
+                cleanInput = cleanInput.slice(0, -3);
+            }
+            // ------------------------------------------------------
+
             if (cleanInput.length > 30) cleanInput = cleanInput.slice(-12);
 
             let filteredOrders = [];
