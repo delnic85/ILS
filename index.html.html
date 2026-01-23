@@ -12,75 +12,39 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;900&display=swap" rel="stylesheet">
     
     <style>
-        :root {
-            --brand-orange: #FD991F;
-            --brand-gray: #7A8686;
-        }
-        
-        body {
-            font-family: 'Inter', sans-serif;
-        }
-
+        :root { --brand-orange: #FD991F; --brand-gray: #7A8686; }
+        body { font-family: 'Inter', sans-serif; }
         .loader {
-            width: 48px;
-            height: 48px;
-            border: 5px solid #FFF;
-            border-bottom-color: var(--brand-orange);
-            border-radius: 50%;
-            display: inline-block;
-            box-sizing: border-box;
-            animation: rotation 1s linear infinite;
+            width: 48px; height: 48px; border: 5px solid #FFF; 
+            border-bottom-color: var(--brand-orange); border-radius: 50%; 
+            display: inline-block; box-sizing: border-box; animation: rotation 1s linear infinite;
         }
-
-        @keyframes rotation {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
-        }
+        @keyframes rotation { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
     </style>
     
     <script>
         tailwind.config = {
-            theme: {
-                extend: {
-                    colors: {
-                        'brand-orange': 'var(--brand-orange)',
-                        'brand-gray': 'var(--brand-gray)',
-                    }
-                }
-            }
+            theme: { extend: { colors: { 'brand-orange': 'var(--brand-orange)', 'brand-gray': 'var(--brand-gray)' } } }
         }
     </script>
 </head>
 <body class="bg-gray-100 text-brand-gray min-h-screen antialiased overflow-x-hidden relative">
 
-    <div id="perf-timer" class="fixed top-2 left-2 bg-black text-white px-3 py-1 rounded text-xs font-mono shadow-md z-50 hidden">
-        Tempo: -- ms
-    </div>
+    <div id="perf-timer" class="fixed top-2 left-2 bg-black text-white px-3 py-1 rounded text-xs font-mono shadow-md z-50 hidden">Tempo: -- ms</div>
 
     <div class="container mx-auto w-full p-2 md:p-4"> 
 
         <header class="relative flex items-center justify-center mb-8">
-            <h1 class="text-3xl md:text-5xl font-bold text-brand-orange tracking-tight">
-                Scannerizza Etichetta
-            </h1>
-
-            <a href="https://delnic85.github.io/ILS/magazzino.html" 
-               class="absolute right-0 top-1/2 -translate-y-1/2 flex items-center gap-1 text-brand-gray hover:text-brand-orange font-semibold transition-colors duration-200 group">
+            <h1 class="text-3xl md:text-5xl font-bold text-brand-orange tracking-tight">Scannerizza Etichetta</h1>
+            <a href="https://delnic85.github.io/ILS/magazzino.html" class="absolute right-0 top-1/2 -translate-y-1/2 flex items-center gap-1 text-brand-gray hover:text-brand-orange font-semibold transition-colors duration-200 group">
                 <span>Magazzino</span>
-                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-5 h-5 group-hover:translate-x-1 transition-transform">
-                  <path stroke-linecap="round" stroke-linejoin="round" d="M13.5 4.5 21 12m0 0-7.5 7.5M21 12H3" />
-                </svg>
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-5 h-5 group-hover:translate-x-1 transition-transform"><path stroke-linecap="round" stroke-linejoin="round" d="M13.5 4.5 21 12m0 0-7.5 7.5M21 12H3" /></svg>
             </a>
         </header>
 
         <div class="bg-white rounded-2xl shadow-lg p-4 mb-6">
-            <div>
-                <label for="search-box" class="sr-only">Cerca Tracking</label>
-                <input type="text" id="search-box" 
-                       placeholder="Inserisci il codice di tracking..." 
-                       class="w-full p-4 border border-gray-300 rounded-lg text-lg shadow-sm
-                              focus:outline-none focus:ring-2 focus:ring-brand-orange focus:border-transparent">
-            </div>
+            <label for="search-box" class="sr-only">Cerca Tracking</label>
+            <input type="text" id="search-box" placeholder="Inserisci il codice di tracking..." class="w-full p-4 border border-gray-300 rounded-lg text-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-brand-orange focus:border-transparent">
         </div>
 
         <div class="space-y-6">
@@ -102,63 +66,59 @@
                             <table class="w-full text-sm">
                                 <thead>
                                     <tr class="border-b border-gray-200">
-                                        <th class="text-left py-2 text-brand-orange">SKU GLS</th>
+                                        <th class="text-left py-2 text-brand-orange">SKU</th>
                                         <th class="text-right py-2 text-brand-gray">Venduti</th>
                                     </tr>
                                 </thead>
                                 <tbody id="sidebar-tbody"></tbody>
                             </table>
-                            <p class="text-xs text-gray-400 mt-4 text-center italic">
-                                *Somma totale per questi SKU nel report corrente.
-                            </p>
+                            <p class="text-xs text-gray-400 mt-4 text-center italic">*Somma totale per questi SKU nel report corrente.</p>
                         </div>
                     </div>
                 </div>
             </div>
         </div>
-
     </div>
 
     <script>
-        // --- CONFIGURAZIONE ---
         const SHEET_ID_ORDINI = "1Qjj9QhNw4unnUV3t2kNP9j3K-usHzw-MCQ3laUrwqos";
         
+        // Aggiunta la scheda AMAZON alla lista
         const NOMI_SCHEDE = [
             "GERMANIA", "FRANCIA", "ITALIA", "PAESI BASSI", "SPAGNA", 
             "BELGIO", "AUSTRIA", "REP. CECA", "UNGHERIA", "PORTOGALLO", 
-            "DANIMARCA", "POLONIA"
+            "DANIMARCA", "POLONIA", "AMAZON"
         ];
 
         const ORDER_SHEET_URLS = NOMI_SCHEDE.map(nome => 
             `https://docs.google.com/spreadsheets/d/${SHEET_ID_ORDINI}/gviz/tq?tqx=out:csv&sheet=${encodeURIComponent(nome)}`
         );
 
-        // URL SYNC PRODOTTI (Ponte tra SKU e ASIN)
         const SYNC_PRODOTTI_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQLf2HBC2g4q3L-hER7WPpYixWIIqJyV6MAkWm4ENZlQNrLxbroZRP3HBZ7Uzl510OVON8q590_YH_S/pub?gid=940187269&single=true&output=csv';
-
-        // URL MAGAZZINO (Info finali tramite ASIN)
         const INVENTORY_CSV_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQLf2HBC2g4q3L-hER7WPpYixWIIqJyV6MAkWm4ENZlQNrLxbroZRP3HBZ7Uzl510OVON8q590_YH_S/pub?gid=938359466&single=true&output=csv';
 
-        // MAPPATURE
-        const MAP_OLD = { ORDER_ID: 0, ITEM_TITLE: 7, SKU: 9, QTY: 11, CLIENT: 14, TRACKING: 33 };
-        const MAP_NEW = { ORDER_ID: 0, ITEM_TITLE: 7, SKU: 10, QTY: 12, CLIENT: 15, TRACKING: 34 };
+        // --- MAPPATURE TEMU ---
+        const MAP_TEMU_OLD = { ORDER_ID: 0, ITEM_TITLE: 7, SKU: 9, QTY: 11, CLIENT: 14, TRACKING: 33 };
+        const MAP_TEMU_NEW = { ORDER_ID: 0, ITEM_TITLE: 7, SKU: 10, QTY: 12, CLIENT: 15, TRACKING: 34 };
 
-        // SYNC: Colonna A = ASIN (0), Colonna B = SKU (1)
-        const SYNC_COLS = { ASIN: 0, SKU: 1 };
-
-        // MAGAZZINO: Colonna A = ASIN (0), il resto uguale
-        const INVENTORY_COLS = { 
-            ASIN: 0, // Chiave di ricerca nel magazzino
-            F_BRAND: 5, 
-            I_SCAFFALE: 8, 
-            AB_IMG_URL: 27 
+        // --- MAPPATURA AMAZON ---
+        // A=0, B=1 ... L=11, M=12, O=14, P=15, R=17
+        const MAP_AMAZON = {
+            ORDER_ID: 11,   // Colonna L
+            TRACKING: 12,   // Colonna M
+            SKU: 14,        // Colonna O
+            ITEM_TITLE: 15, // Colonna P
+            QTY: 17,        // Colonna R
+            CLIENT: 1       // Colonna B
         };
 
-        // --- VARIABILI GLOBALI ---
+        const SYNC_COLS = { ASIN: 0, SKU: 1 };
+        const INVENTORY_COLS = { ASIN: 0, F_BRAND: 5, I_SCAFFALE: 8, AB_IMG_URL: 27 };
+
         let searchBox, statusMessage, loadingText, ordersContainer, perfTimer, sidebarContainer, sidebarTbody, mainLayout;
         let allGroupedOrders = [];
-        let inventoryDataMap = new Map(); // Mappa finale: ASIN -> Dati Magazzino
-        let skuToAsinMap = new Map();     // Mappa ponte: SKU -> ASIN
+        let inventoryDataMap = new Map();
+        let skuToAsinMap = new Map();
         let trackingIndex = new Map();
         let skuCountsByReport = [];
         let searchStartTime = 0;
@@ -185,46 +145,34 @@
             loadAllData();
         });
 
+        function normalizeTracking(code) {
+            if (!code) return "";
+            return code.toString().replace(/[^a-zA-Z0-9]/g, "").toUpperCase();
+        }
+
         async function loadAllData() {
             try {
-                // 1. Carica SYNC PRODOTTI (SKU -> ASIN)
-                loadingText.textContent = "Caricamento tabella di conversione...";
                 const syncResponse = await fetch(SYNC_PRODOTTI_URL);
-                if (syncResponse.ok) {
-                    createSkuToAsinMap(await syncResponse.text());
-                } else {
-                    console.error("Errore Sync Prodotti");
-                }
+                if (syncResponse.ok) createSkuToAsinMap(await syncResponse.text());
 
-                // 2. Carica MAGAZZINO (ASIN -> Dati)
-                loadingText.textContent = "Caricamento magazzino...";
                 const invResponse = await fetch(INVENTORY_CSV_URL);
-                if (invResponse.ok) {
-                    createInventoryMap(await invResponse.text());
-                } else {
-                    console.error("Errore Magazzino");
-                }
+                if (invResponse.ok) createInventoryMap(await invResponse.text());
 
                 const allOrdersMap = new Map();
                 let ordersLoadedCount = 0;
                 skuCountsByReport = new Array(NOMI_SCHEDE.length).fill(null);
 
-                // 3. Carica ORDINI
                 for (let i = 0; i < NOMI_SCHEDE.length; i++) {
                     const nome = NOMI_SCHEDE[i];
-                    loadingText.textContent = `Caricamento ordini ${nome}... (${i+1}/${NOMI_SCHEDE.length})`;
-                    
+                    loadingText.textContent = `Caricamento ${nome}... (${i+1}/${NOMI_SCHEDE.length})`;
                     try {
                         const response = await fetch(ORDER_SHEET_URLS[i]);
                         if (response.ok) {
-                            const csvText = await response.text();
                             skuCountsByReport[i] = {}; 
-                            processOrdersCsv(csvText, allOrdersMap, i);
+                            processOrdersCsv(await response.text(), allOrdersMap, i);
                             ordersLoadedCount++;
                         }
-                    } catch (e) {
-                        console.warn(`Errore scheda ${nome}`);
-                    }
+                    } catch (e) { console.warn(`Errore scheda ${nome}`); }
                 }
 
                 if (ordersLoadedCount === 0) throw new Error('Nessun dato caricato.');
@@ -233,51 +181,34 @@
                 buildTrackingIndex();
                 renderOrders();
                 statusMessage.classList.add('hidden');
-
             } catch (error) {
                 console.error(error);
                 statusMessage.innerHTML = `<div class="text-red-600 p-4">Errore: ${error.message}</div>`;
             }
         }
 
-        // --- MAPPA PONTE: SKU -> ASIN ---
         function createSkuToAsinMap(csvText) {
-            const lines = csvText.trim().split('\n');
-            lines.shift(); // Skip header
+            const lines = csvText.trim().split('\n'); lines.shift(); 
             lines.forEach(line => {
                 const cols = parseCSVLine(line);
-                const asin = cols[SYNC_COLS.ASIN];
-                const sku = cols[SYNC_COLS.SKU];
-                if (asin && sku) {
-                    // Normalizziamo lo SKU (trim) per evitare problemi di spazi
-                    skuToAsinMap.set(sku.trim(), asin.trim());
-                }
+                if (cols[0] && cols[1]) skuToAsinMap.set(cols[1].trim(), cols[0].trim());
             });
         }
 
-        // --- MAPPA DATI: ASIN -> INFO ---
         function createInventoryMap(csvText) {
-            const lines = csvText.trim().split('\n');
-            lines.shift();
+            const lines = csvText.trim().split('\n'); lines.shift();
             lines.forEach(line => {
                 const cols = parseCSVLine(line);
-                const asin = cols[INVENTORY_COLS.ASIN]; // Colonna A del magazzino
-                if (asin) {
-                    inventoryDataMap.set(asin.trim(), { 
-                        imageUrl: cols[INVENTORY_COLS.AB_IMG_URL] || '',
-                        scaffale: cols[INVENTORY_COLS.I_SCAFFALE] || 'N/D',
-                        brand: cols[INVENTORY_COLS.F_BRAND] || 'N/D'
-                    });
-                }
+                if (cols[0]) inventoryDataMap.set(cols[0].trim(), { 
+                    imageUrl: cols[27] || '', scaffale: cols[8] || 'N/D', brand: cols[5] || 'N/D' 
+                });
             });
         }
 
         function buildTrackingIndex() {
             trackingIndex.clear();
             allGroupedOrders.forEach(order => {
-                if (order.tracking) {
-                    trackingIndex.set(order.tracking.toLowerCase().trim(), order);
-                }
+                if (order.tracking) trackingIndex.set(normalizeTracking(order.tracking), order);
             });
         }
 
@@ -285,49 +216,98 @@
             const lines = csvText.trim().split('\n');
             lines.shift(); 
             let currentReportCounts = skuCountsByReport[reportIndex];
+            
+            // Controlla se stiamo processando la scheda AMAZON
+            const isAmazon = NOMI_SCHEDE[reportIndex] === "AMAZON";
 
             lines.forEach(line => {
                 const cols = parseCSVLine(line);
                 
-                // Rilevamento automatico formato (AH vs AI)
-                let mapping = MAP_OLD;
-                const col34 = cols[34] ? cols[34].trim() : "";
-                if (col34.length > 5 && !col34.includes("€") && !col34.includes(".")) {
-                    mapping = MAP_NEW;
+                let orderId, sku, qty, cliente, tracking, itemTitle;
+
+                if (isAmazon) {
+                    // --- LOGICA AMAZON ---
+                    if (cols.length <= 17) return; // Controllo lunghezza minima per Amazon
+
+                    orderId = cols[MAP_AMAZON.ORDER_ID];
+                    sku = cols[MAP_AMAZON.SKU] ? cols[MAP_AMAZON.SKU].trim() : 'N/D';
+                    qty = parseInt(cols[MAP_AMAZON.QTY]) || 0;
+                    cliente = cols[MAP_AMAZON.CLIENT] || 'N/D';
+                    tracking = cols[MAP_AMAZON.TRACKING] ? cols[MAP_AMAZON.TRACKING].trim() : 'N/D';
+                    itemTitle = cols[MAP_AMAZON.ITEM_TITLE] || 'N/D';
+
+                } else {
+                    // --- LOGICA TEMU (DINAMICA) ---
+                    if (cols.length < 15) return;
+
+                    // 1. Tracking Temu
+                    tracking = null;
+                    const trackingCandidates = [33, 34, 35];
+                    for (let idx of trackingCandidates) {
+                        let val = cols[idx] ? cols[idx].trim() : "";
+                        if (val.length > 5 && !val.includes("€") && !val.includes(".")) {
+                            tracking = val;
+                            break;
+                        }
+                    }
+
+                    // 2. SKU Temu
+                    sku = 'N/D';
+                    const skuCandidates = [9, 10, 11];
+                    for (let idx of skuCandidates) {
+                        let val = cols[idx] ? cols[idx].trim() : "";
+                        if (val.length > 2 && (val.includes("-") || val.includes("GLS") || isNaN(val))) {
+                             if (!/^\d{8,}$/.test(val)) { sku = val; break; }
+                        }
+                    }
+
+                    // 3. Qty Temu
+                    qty = 0;
+                    const qtyCandidates = [11, 12, 13];
+                    for (let idx of qtyCandidates) {
+                        let val = cols[idx] ? cols[idx].trim() : "";
+                        if (val && !isNaN(val) && val.length < 4) {
+                            qty = parseInt(val);
+                            break;
+                        }
+                    }
+
+                    // 4. Cliente Temu
+                    cliente = 'N/D';
+                    const clientCandidates = [14, 15, 16];
+                    for (let idx of clientCandidates) {
+                        let val = cols[idx] ? cols[idx].trim() : "";
+                        if (val && val.length > 2 && isNaN(val)) {
+                            cliente = val;
+                            break;
+                        }
+                    }
+
+                    orderId = cols[0];
+                    itemTitle = cols[7] || 'N/D';
                 }
 
-                if (cols.length <= mapping.TRACKING) return;
-
-                const orderId = cols[mapping.ORDER_ID];
                 if (!orderId) return;
 
-                const sku = cols[mapping.SKU] ? cols[mapping.SKU].trim() : 'N/D';
-                const qty = parseInt(cols[mapping.QTY]) || 0;
-
-                // Calcolo Totali per Report
+                // --- LOGICA COMUNE (PONTE) ---
+                
+                // Aggiorna contatori
                 if (sku !== 'N/D') {
                     if (!currentReportCounts[sku]) currentReportCounts[sku] = 0;
                     currentReportCounts[sku] += qty;
                 }
 
-                // --- LOGICA A PONTE ---
-                // 1. Ho lo SKU (dagli ordini)
-                // 2. Cerco l'ASIN corrispondente
+                // Recupera dati Magazzino tramite Ponte ASIN
                 const asin = skuToAsinMap.get(sku);
-                
-                // 3. Uso l'ASIN per trovare i dati in magazzino (oppure N/D se non trovato)
                 let inv = { imageUrl: '', scaffale: 'N/D', brand: 'N/D' };
                 if (asin && inventoryDataMap.has(asin)) {
                     inv = inventoryDataMap.get(asin);
-                } else if (!asin) {
-                    // Fallback opzionale: se non c'è mapping SKU->ASIN, potremmo segnalarlo
-                    // console.log("ASIN mancante per SKU:", sku); 
                 }
 
                 const item = {
-                    articolo: cols[mapping.ITEM_TITLE] || 'N/D',
-                    sku: sku, // Mostriamo ancora lo SKU Temu originale
-                    asin: asin || 'N/D', // Salviamo anche l'ASIN per riferimento
+                    articolo: itemTitle,
+                    sku: sku,
+                    asin: asin || 'N/D',
                     qty: qty,
                     imageUrl: inv.imageUrl,
                     scaffale: inv.scaffale,
@@ -339,8 +319,8 @@
                 } else {
                     ordersMap.set(orderId, {
                         orderId: orderId,
-                        cliente: cols[mapping.CLIENT] || 'N/D',
-                        tracking: cols[mapping.TRACKING] || 'N/D',
+                        cliente: cliente,
+                        tracking: tracking || 'N/D',
                         reportIndex: reportIndex,
                         items: [item]
                     });
@@ -350,14 +330,14 @@
 
         function renderOrders() {
             let rawInput = searchBox.value.trim();
-            let searchTerm = rawInput.toLowerCase();
-            if (rawInput.length > 30) searchTerm = rawInput.slice(-12).toLowerCase();
+            let cleanInput = normalizeTracking(rawInput);
+            if (cleanInput.length > 30) cleanInput = cleanInput.slice(-12);
 
             let filteredOrders = [];
-            if (trackingIndex.has(searchTerm)) {
-                filteredOrders = [trackingIndex.get(searchTerm)];
-            } else if (searchTerm.length > 0) {
-                filteredOrders = allGroupedOrders.filter(o => o.tracking && o.tracking.toLowerCase().includes(searchTerm));
+            if (trackingIndex.has(cleanInput)) {
+                filteredOrders = [trackingIndex.get(cleanInput)];
+            } else if (cleanInput.length > 0) {
+                filteredOrders = allGroupedOrders.filter(o => o.tracking && normalizeTracking(o.tracking).includes(cleanInput));
             }
 
             ordersContainer.innerHTML = '';
@@ -367,7 +347,7 @@
             sidebarContainer.classList.add('hidden'); 
 
             if (filteredOrders.length === 0) {
-                if (searchTerm.length > 0) {
+                if (cleanInput.length > 0) {
                     statusMessage.innerHTML = `<div class="p-8 text-center text-gray-500">Nessun ordine trovato.</div>`;
                     statusMessage.classList.remove('hidden');
                 } else if (!document.querySelector('.loader')) {
@@ -387,15 +367,10 @@
                 const reportStats = skuCountsByReport[reportIdx];
                 let sidebarHtml = '';
                 const uniqueSkusInOrder = new Set(mainOrder.items.map(i => i.sku));
-
                 uniqueSkusInOrder.forEach(sku => {
                     if(sku !== 'N/D') {
                         const totalSold = reportStats[sku] || 0;
-                        sidebarHtml += `
-                            <tr class="border-b border-gray-100 last:border-0">
-                                <td class="py-2 text-brand-orange font-bold text-xs md:text-sm">${sku}</td>
-                                <td class="py-2 text-right font-bold text-gray-700 text-lg">${totalSold}</td>
-                            </tr>`;
+                        sidebarHtml += `<tr class="border-b border-gray-100 last:border-0"><td class="py-2 text-brand-orange font-bold text-xs md:text-sm">${sku}</td><td class="py-2 text-right font-bold text-gray-700 text-lg">${totalSold}</td></tr>`;
                     }
                 });
                 sidebarTbody.innerHTML = sidebarHtml;
@@ -405,74 +380,36 @@
             filteredOrders.forEach(order => {
                 const orderCard = document.createElement('div');
                 orderCard.className = 'bg-white rounded-2xl shadow-lg overflow-hidden mb-6';
-                
-                const headerHtml = `
-                    <div class="bg-brand-gray text-white p-4 md:flex justify-between items-center">
-                        <div><p class="text-sm uppercase opacity-80">Cliente</p><p class="text-xl font-bold">${order.cliente}</p></div>
-                        <div class="mt-2 md:mt-0 md:text-right"><p class="text-sm uppercase opacity-80">Tracking</p><p class="text-xl font-bold text-brand-orange">${order.tracking || 'N/D'}</p></div>
-                    </div>
-                `;
-
+                const headerHtml = `<div class="bg-brand-gray text-white p-4 md:flex justify-between items-center"><div><p class="text-sm uppercase opacity-80">Cliente</p><p class="text-xl font-bold">${order.cliente}</p></div><div class="mt-2 md:mt-0 md:text-right"><p class="text-sm uppercase opacity-80">Tracking</p><p class="text-xl font-bold text-brand-orange">${order.tracking || 'N/D'}</p></div></div>`;
                 const itemCount = order.items.length;
                 const isSingleItem = itemCount === 1;
                 const gridCols = Math.min(itemCount, 3);
-
                 const itemsHtml = order.items.map(item => {
                     const placeholderImg = `https://placehold.co/150x150/FD991F/white?text=${item.sku[0] || '?'}`;
                     const imgBoxClass = isSingleItem ? "w-72 h-72" : "w-40 h-40";
                     const titleClass = isSingleItem ? "text-2xl md:text-3xl mb-6" : "text-base md:text-lg mb-3";
                     const shelfSizeClass = isSingleItem ? "text-6xl" : "text-5xl";
-                    const detailsContainerClass = isSingleItem ? "ml-8 gap-4" : "ml-4 gap-2";
-
-                    return `
-                        <div class="bg-white flex flex-col p-4 ${isSingleItem ? 'items-center text-center' : ''}">
-                            <p class="font-semibold text-gray-800 line-clamp-2 ${titleClass}" title="${item.articolo}">${item.articolo}</p>
-                            <div class="flex items-center ${isSingleItem ? 'justify-center' : 'justify-start'} w-full">
-                                <div class="${imgBoxClass} flex-shrink-0 flex items-center justify-center bg-gray-50 rounded-md border border-gray-100 p-1">
-                                    <img src="${item.imageUrl || placeholderImg}" alt="Prodotto" class="w-full h-full object-contain" onerror="this.onerror=null; this.src='${placeholderImg}';">
-                                </div>
-                                <div class="flex flex-col items-start text-left flex-grow ${detailsContainerClass}">
-                                    <p class="text-sm text-brand-orange font-bold break-all">${item.sku}</p>
-                                    <div class="flex items-baseline gap-4 mt-1">
-                                        <span class="text-gray-600 font-medium text-lg">${item.brand}</span>
-                                        <span class="${shelfSizeClass} font-black text-brand-orange leading-none">${item.scaffale}</span>
-                                    </div>
-                                    <div class="mt-3">
-                                        <div class="w-16 h-16 bg-brand-orange text-white text-3xl font-bold rounded-full flex items-center justify-center shadow-md">${item.qty}</div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    `;
+                    return `<div class="bg-white flex flex-col p-4 ${isSingleItem ? 'items-center text-center' : ''}"><p class="font-semibold text-gray-800 line-clamp-2 ${titleClass}" title="${item.articolo}">${item.articolo}</p><div class="flex items-center ${isSingleItem ? 'justify-center' : 'justify-start'} w-full"><div class="${imgBoxClass} flex-shrink-0 flex items-center justify-center bg-gray-50 rounded-md border border-gray-100 p-1"><img src="${item.imageUrl || placeholderImg}" alt="Prodotto" class="w-full h-full object-contain" onerror="this.onerror=null; this.src='${placeholderImg}';"></div><div class="flex flex-col items-start text-left flex-grow ${isSingleItem ? 'ml-8 gap-4' : 'ml-4 gap-2'}"><p class="text-sm text-brand-orange font-bold break-all">${item.sku}</p><div class="flex items-baseline gap-4 mt-1"><span class="text-gray-600 font-medium text-lg">${item.brand}</span><span class="${shelfSizeClass} font-black text-brand-orange leading-none">${item.scaffale}</span></div><div class="mt-3"><div class="w-16 h-16 bg-brand-orange text-white text-3xl font-bold rounded-full flex items-center justify-center shadow-md">${item.qty}</div></div></div></div></div>`;
                 }).join('');
-
                 orderCard.innerHTML = `${headerHtml}<div class="grid bg-brand-gray gap-[2px] border-2 border-brand-gray" style="grid-template-columns: repeat(${gridCols}, minmax(0, 1fr));">${itemsHtml}</div>`;
                 ordersContainer.appendChild(orderCard);
             });
-
             updateTimer();
         }
 
         function updateTimer() {
             const endTime = performance.now();
-            if (searchStartTime > 0) {
-                perfTimer.textContent = `Tempo: ${(endTime - searchStartTime).toFixed(0)} ms`;
-                perfTimer.classList.remove('hidden');
-            }
+            if (searchStartTime > 0) { perfTimer.textContent = `Tempo: ${(endTime - searchStartTime).toFixed(0)} ms`; perfTimer.classList.remove('hidden'); }
         }
 
         function parseCSVLine(line) {
-            const values = [];
-            let inQuote = false;
-            let currentValue = '';
+            const values = []; let inQuote = false; let currentValue = '';
             for (let i = 0; i < line.length; i++) {
                 const char = line[i];
                 if (char === '"') {
-                    if (inQuote && line[i+1] === '"') { currentValue += '"'; i++; } 
-                    else { inQuote = !inQuote; }
-                } else if (char === ',' && !inQuote) {
-                    values.push(currentValue.trim().replace(/^"|"$/g, '')); currentValue = '';
-                } else { currentValue += char; }
+                    if (inQuote && line[i+1] === '"') { currentValue += '"'; i++; } else { inQuote = !inQuote; }
+                } else if (char === ',' && !inQuote) { values.push(currentValue.trim().replace(/^"|"$/g, '')); currentValue = ''; } 
+                else { currentValue += char; }
             }
             values.push(currentValue.trim().replace(/^"|"$/g, ''));
             return values;
