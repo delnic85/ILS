@@ -4,409 +4,309 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Ricerca Magazzino - I LOVE SHOPPING</title>
-    
     <script src="https://cdn.tailwindcss.com"></script>
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;900&display=swap" rel="stylesheet">
-    
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;900&display=swap" rel="stylesheet">
     <style>
         :root { --brand-orange: #FD991F; --brand-gray: #7A8686; }
-        body { font-family: 'Inter', sans-serif; }
-        
-        .loader {
-            width: 48px; height: 48px;
-            border: 5px solid #FFF; border-bottom-color: var(--brand-orange);
-            border-radius: 50%; display: inline-block; box-sizing: border-box;
-            animation: rotation 1s linear infinite;
-        }
-        
-        .skugls { width: 150px; overflow-wrap: break-word; word-break: break-all; }
-        
-        .sku-button {
-            font-weight: 600; color: var(--brand-orange); text-decoration: none;
-            background: none; border: none; padding: 0; cursor: pointer;
-            transition: all 0.2s ease; text-align: left; width: 100%;
-        }
-        .sku-button:hover { text-decoration: underline; color: #E48A1A; }
-
-        /* Colore per prodotti in esaurimento (Restock < 4 settimane) */
+        body { font-family: 'Inter', sans-serif; background-color: #f3f4f6; }
+        .loader { width: 40px; height: 40px; border: 4px solid #f3f3f3; border-top: 4px solid var(--brand-orange); border-radius: 50%; animation: spin 1s linear infinite; display: inline-block; }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        .skugls { width: 150px; overflow-wrap: break-word; }
         .low-stock-alert { background-color: #F5DEB3 !important; }
-
-        /* Header tabella fisso durante lo scroll */
-        thead th { position: sticky; top: 0; z-index: 10; background: var(--brand-gray); }
-
-        @keyframes rotation { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        thead th { position: sticky; top: 0; z-index: 20; background: var(--brand-gray); color: white; padding: 1rem; }
+        .sku-link { color: var(--brand-orange); font-weight: 700; text-decoration: none; cursor: pointer; }
+        .sku-link:hover { text-decoration: underline; }
     </style>
-    
-    <script>
-        tailwind.config = { theme: { extend: { colors: { 'brand-orange': 'var(--brand-orange)', 'brand-gray': 'var(--brand-gray)', } } } }
-    </script>
 </head>
-<body class="bg-gray-100 text-brand-gray min-h-screen antialiased">
+<body class="antialiased text-brand-gray">
 
     <div class="container mx-auto max-w-7xl p-4 md:p-8">
-        <nav class="flex flex-col md:flex-row justify-between items-center gap-4 mb-8">
-            <a href="https://delnic85.github.io/ILS/index.html" class="text-lg font-semibold text-brand-gray hover:text-brand-orange transition-all flex items-center gap-2">
-                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1zm12 0h2a1 1 0 001-1V5a1 1 0 00-1-1h-2a1 1 0 00-1 1v2a1 1 0 001 1zM5 16h2a1 1 0 001-1v-2a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1z" />
-                </svg>
+        <nav class="flex flex-col md:flex-row justify-between items-center gap-4 mb-6">
+            <a href="https://delnic85.github.io/ILS/index.html" class="flex items-center gap-2 font-bold hover:text-brand-orange transition">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1zm12 0h2a1 1 0 001-1V5a1 1 0 00-1-1h-2a1 1 0 00-1 1v2a1 1 0 001 1zM5 16h2a1 1 0 001-1v-2a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1z" /></svg>
                 Scannerizza etichetta
             </a>
-            <div class="flex gap-6">
-                <button id="nav-inventory" onclick="switchTab('inventory')" class="text-lg font-semibold text-brand-orange border-b-2 border-brand-orange pb-1 transition-all">Ricerca Magazzino</button>
-                <button id="nav-bestsellers" onclick="switchTab('bestsellers')" class="text-lg font-semibold text-brand-gray hover:text-brand-orange transition-all">BEST SELLERS</button>
+            <div class="flex gap-4">
+                <button id="btn-inv" onclick="switchTab('inventory')" class="px-4 py-2 font-bold border-b-4 border-brand-orange text-brand-orange">Ricerca Magazzino</button>
+                <button id="btn-bs" onclick="switchTab('bestsellers')" class="px-4 py-2 font-bold border-b-4 border-transparent">BEST SELLERS</button>
             </div>
         </nav>
-        
-        <div id="inventory-view">
-            <header class="flex items-center justify-center gap-4 mb-8">
-                <h1 class="text-3xl md:text-5xl font-bold text-brand-orange tracking-tight">I LOVE SHOPPING</h1>
-            </header> 
-            <div class="bg-white rounded-2xl shadow-lg p-6 md:p-8 mb-8">
-                <div class="mb-8">
-                    <input type="text" id="search-box" placeholder="Cerca per SKU, nome, categoria, brand..." class="w-full p-4 border border-gray-300 rounded-lg text-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-brand-orange">
-                </div>
-                <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    <div><label class="block text-sm font-medium text-gray-700 mb-2">Categoria</label><select id="filter-category" class="w-full p-3 border border-gray-300 rounded-lg shadow-sm bg-white"><option value="">Tutte le categorie</option></select></div>
-                    <div><label class="block text-sm font-medium text-gray-700 mb-2">Brand</label><select id="filter-brand" class="w-full p-3 border border-gray-300 rounded-lg shadow-sm bg-white"><option value="">Tutti i brand</option></select></div>
-                    <div><label class="block text-sm font-medium text-gray-700 mb-2">Scaffale</label><select id="filter-shelf" class="w-full p-3 border border-gray-300 rounded-lg shadow-sm bg-white"><option value="">Tutti gli scaffali</option></select></div>
-                </div>
+
+        <div id="filter-section" class="bg-white rounded-2xl shadow-md p-6 mb-6">
+            <input type="text" id="search-box" placeholder="Cerca SKU, nome, brand..." class="w-full p-4 border rounded-xl mb-4 focus:ring-2 focus:ring-brand-orange outline-none">
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <select id="f-cat" class="p-3 border rounded-lg bg-gray-50"><option value="">Tutte le categorie</option></select>
+                <select id="f-brand" class="p-3 border rounded-lg bg-gray-50"><option value="">Tutti i brand</option></select>
+                <select id="f-shelf" class="p-3 border rounded-lg bg-gray-50"><option value="">Tutti gli scaffali</option></select>
             </div>
         </div>
 
-        <div class="bg-white rounded-2xl shadow-lg overflow-hidden">
-            <div id="status-message" class="p-8 text-center">
-                <div class="flex flex-col items-center justify-center space-y-4">
-                    <span class="loader"></span>
-                    <span class="text-gray-500 font-medium">Caricamento in corso di tutti gli articoli...</span>
-                </div>
-            </div>
-
-            <div id="inventory-container-wrapper">
-                <div id="results-container" class="overflow-x-auto hidden md:block max-h-[800px]">
-                    <table class="w-full min-w-max">
-                        <thead class="bg-brand-gray text-white">
-                            <tr>
-                                <th class="p-4 text-left text-sm font-semibold uppercase">Immagine</th>
-                                <th class="p-4 skugls text-left text-sm font-semibold uppercase">SKU GLS</th>
-                                <th class="p-4 text-left text-sm font-semibold uppercase">Categoria</th>
-                                <th class="p-4 text-left text-sm font-semibold uppercase">Brand</th>
-                                <th class="p-4 text-center text-sm font-semibold uppercase">QTY Mag</th>
-                                <th class="p-4 text-left text-sm font-semibold uppercase">Scaffale</th>
-                            </tr>
-                        </thead>
-                        <tbody id="results-table-body" class="divide-y divide-gray-200"></tbody>
-                    </table>
-                </div>
-                <div id="results-cards-container" class="block md:hidden"></div>
-            </div>
-
-            <div id="bestsellers-container-wrapper" class="hidden">
-                <div id="bestsellers-table-container" class="overflow-x-auto hidden md:block max-h-[800px]">
-                    <table class="w-full min-w-max">
-                        <thead class="bg-brand-gray text-white">
-                            <tr>
-                                <th class="p-4 text-left text-sm font-semibold uppercase">Immagine</th>
-                                <th class="p-4 skugls text-left text-sm font-semibold uppercase">SKU GLS</th>
-                                <th onclick="sortBestSellers('qty24')" class="p-4 text-center text-sm font-semibold uppercase cursor-pointer hover:bg-opacity-80">24 H <span id="sort-arrow-24h"></span></th>
-                                <th onclick="sortBestSellers('qty7')" class="p-4 text-center text-sm font-semibold uppercase cursor-pointer hover:bg-opacity-80">7 GG <span id="sort-arrow-7g"></span></th>
-                                <th onclick="sortBestSellers('qty30')" class="p-4 text-center text-sm font-semibold uppercase cursor-pointer hover:bg-opacity-80">30 GG <span id="sort-arrow-30g"></span></th>
-                                <th onclick="sortBestSellers('qty365')" class="p-4 text-center text-sm font-semibold uppercase cursor-pointer hover:bg-opacity-80">365 GG <span id="sort-arrow-365g"></span></th>
-                                <th onclick="sortBestSellers('qtyRestockWeeks')" class="p-4 text-center text-sm font-semibold uppercase cursor-pointer hover:bg-opacity-80">RESTOCK WEEKS <span id="sort-arrow-restock"></span></th>
-                            </tr>
-                        </thead>
-                        <tbody id="bestsellers-table-body" class="divide-y divide-gray-200"></tbody>
-                    </table>
-                </div>
-                <div id="bestsellers-cards-container" class="block md:hidden"></div>
-            </div>
+        <div id="loader-area" class="text-center p-10 hidden">
+            <div class="loader"></div>
+            <p class="mt-4 font-semibold" id="loader-text">Elaborazione dati in corso...</p>
         </div>
 
-        <div id="bestsellers-header" class="hidden mt-8">
-            <header class="flex items-center justify-center gap-4 mb-8">
-                <h1 class="text-3xl md:text-5xl font-bold text-brand-orange tracking-tight">Best Sellers</h1>
-            </header>
+        <div class="bg-white rounded-2xl shadow-xl overflow-hidden relative min-h-[400px]">
+            <div id="view-inventory" class="overflow-x-auto">
+                <table class="w-full text-left border-collapse">
+                    <thead>
+                        <tr><th>Immagine</th><th>SKU GLS</th><th>Categoria</th><th>Brand</th><th class="text-center">QTY</th><th>Scaffale</th></tr>
+                    </thead>
+                    <tbody id="tbody-inv" class="divide-y"></tbody>
+                </table>
+                <div id="cards-inv" class="md:hidden divide-y"></div>
+            </div>
+
+            <div id="view-bs" class="hidden overflow-x-auto">
+                <table class="w-full text-left border-collapse">
+                    <thead>
+                        <tr>
+                            <th>Immagine</th><th>SKU</th>
+                            <th onclick="resort('qty24')" class="cursor-pointer">24H ↕</th>
+                            <th onclick="resort('qty7')" class="cursor-pointer">7G ↕</th>
+                            <th onclick="resort('qty30')" class="cursor-pointer">30G ↕</th>
+                            <th onclick="resort('qty365')" class="cursor-pointer">365G ↕</th>
+                            <th onclick="resort('qtyRestock')" class="cursor-pointer text-brand-orange">WEEKS ↕</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tbody-bs" class="divide-y"></tbody>
+                </table>
+                <div id="cards-bs" class="md:hidden divide-y"></div>
+            </div>
         </div>
     </div>
 
-    <div id="product-modal" class="fixed inset-0 bg-black bg-opacity-60 hidden flex items-center justify-center p-4 z-40">
-        <div class="bg-white rounded-2xl shadow-xl w-full max-w-lg p-6 relative">
-            <button onclick="closeProductModal()" class="absolute top-4 right-4 text-3xl text-brand-gray hover:text-black">&times;</button>
-            <h2 class="text-2xl font-bold text-brand-orange mb-4">Dettagli Prodotto</h2>
+    <div id="modal" class="fixed inset-0 bg-black/60 hidden flex items-center justify-center p-4 z-50">
+        <div class="bg-white rounded-3xl max-w-lg w-full p-8 relative">
+            <button onclick="closeModal()" class="absolute top-4 right-6 text-4xl">&times;</button>
             <div class="flex flex-col md:flex-row gap-6">
-                <div class="flex-shrink-0"><img id="modal-img" src="" class="w-[150px] h-[150px] object-contain rounded-lg bg-white"></div>
-                <div class="flex-grow">
-                    <h3 id="modal-sku" class="text-xl font-semibold text-gray-900"></h3>
-                    <p id="modal-details" class="text-md text-brand-gray mt-1"></p>
-                    <p id="modal-stock" class="text-md text-brand-gray mt-1"></p>
+                <img id="m-img" src="" class="w-40 h-40 object-contain rounded-xl border">
+                <div>
+                    <h2 id="m-sku" class="text-2xl font-black text-brand-orange mb-2"></h2>
+                    <p id="m-brand" class="font-bold text-gray-500"></p>
+                    <p id="m-qty" class="text-3xl font-black mt-4"></p>
                 </div>
             </div>
         </div>
     </div>
 
     <script>
-        // CONFIGURAZIONE CSV
-        const CSV_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQLf2HBC2g4q3L-hER7WPpYixWIIqJyV6MAkWm4ENZlQNrLxbroZRP3HBZ7Uzl510OVON8q590_YH_S/pub?gid=938359466&single=true&output=csv';
-        const LOG_VENDITE_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQLf2HBC2g4q3L-hER7WPpYixWIIqJyV6MAkWm4ENZlQNrLxbroZRP3HBZ7Uzl510OVON8q590_YH_S/pub?gid=135483104&single=true&output=csv';
-
-        let allProducts = [];
-        let salesLog24h = new Map();
-        let sortState = { column: 'qty24', direction: 'desc' };
-
-        // Mapping Colonne Magazzino
-        const COLS = { 
-            A_ASIN: 0, 
-            C_SKU: 2, 
-            H_QTY: 7, 
-            I_SCAFFALE: 8, 
-            N_7G_FBA: 13, 
-            Q_7G_TEMU: 16, 
-            R_30G: 17, 
-            S_365G: 18, 
-            AB_IMG: 28
+        const CONFIG = {
+            INV: 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQLf2HBC2g4q3L-hER7WPpYixWIIqJyV6MAkWm4ENZlQNrLxbroZRP3HBZ7Uzl510OVON8q590_YH_S/pub?gid=938359466&single=true&output=csv',
+            LOG: 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQLf2HBC2g4q3L-hER7WPpYixWIIqJyV6MAkWm4ENZlQNrLxbroZRP3HBZ7Uzl510OVON8q590_YH_S/pub?gid=135483104&single=true&output=csv',
+            COLS: { ASIN:0, SKU:2, QTY:7, SHELF:8, FBA7:13, TEMU7:16, V30:17, V365:18, IMG:28 }
         };
 
-        const el = id => document.getElementById(id);
-        
-        document.addEventListener('DOMContentLoaded', () => {
-            fetchData();
-            el('search-box').addEventListener('input', () => renderTable());
-            el('filter-category').addEventListener('change', renderTable);
-            el('filter-brand').addEventListener('change', renderTable);
-            el('filter-shelf').addEventListener('change', renderTable);
-        });
+        let dataStore = [];
+        let activeView = 'inventory';
+        let sortKey = 'qty24';
+        let sortDir = -1;
 
-        async function fetchData() {
+        async function init() {
+            showLoading(true, "Scaricamento database...");
             try {
-                const [invRes, logRes] = await Promise.all([fetch(CSV_URL), fetch(LOG_VENDITE_URL)]);
+                const [invRes, logRes] = await Promise.all([fetch(CONFIG.INV), fetch(CONFIG.LOG)]);
                 const [invText, logText] = await Promise.all([invRes.text(), logRes.text()]);
                 
-                processLogVendite(logText);
-                allProducts = parseCSVFast(invText);
+                showLoading(true, "Analisi vendite 24h...");
+                const sales24 = parseLog(logText);
                 
-                populateFilters();
-                renderTable();
-                el('status-message').classList.add('hidden');
-                switchTab('inventory');
-            } catch (err) {
-                console.error(err);
-                el('status-message').innerHTML = `<span class="text-red-600">Errore nel caricamento dati.</span>`;
+                showLoading(true, "Costruzione inventario...");
+                dataStore = parseInventory(invText, sales24);
+                
+                populateSelects();
+                render();
+            } catch (e) {
+                alert("Errore caricamento dati. Verifica connessione.");
             }
+            showLoading(false);
         }
 
-        // PARSER CSV VELOCE CON REGEX
-        function parseCSVFast(text) {
-            const rows = text.split(/\r?\n/);
-            if (rows.length > 0) rows.shift();
-            const regex = /,(?=(?:(?:[^"]*"){2})*[^"]*$)/;
-            
-            return rows.map(row => {
-                if (!row.trim()) return null;
-                const cols = row.split(regex).map(s => s.replace(/^"|"$/g, '').trim());
-                const sku = cols[COLS.C_SKU];
-                if (!sku) return null;
-
-                const qtyMag = parseFloat(cols[COLS.H_QTY]) || 0;
-                const fba7 = parseFloat(cols[COLS.N_7G_FBA]) || 0;
-                const temu7 = parseFloat(cols[COLS.Q_7G_TEMU]) || 0;
-                const total7 = fba7 + temu7;
-                const asin = cols[COLS.A_ASIN] || '';
-
-                // Calcolo Restock: QTY / Vendite settimanali totali
-                let restockSettimane = total7 > 0 ? (qtyMag / total7) : 99;
-
-                return {
-                    sku: sku,
-                    asin: asin,
-                    immagine: cols[COLS.AB_IMG] || '',
-                    categoria: cols[COLS.E_CAT] || '',
-                    brand: cols[COLS.F_BRAND] || '',
-                    qty: qtyMag,
-                    scaffale: cols[COLS.I_SCAFFALE] || '',
-                    qty24: salesLog24h.get(asin) || 0,
-                    qty7: total7,
-                    qty30: parseInt(cols[COLS.R_30G]) || 0,
-                    qty365: parseInt(cols[COLS.S_365G]) || 0,
-                    qtyRestockWeeks: restockSettimane,
-                    searchData: (asin + " " + sku + " " + cols[COLS.E_CAT] + " " + cols[COLS.F_BRAND]).toLowerCase()
-                };
-            }).filter(p => p !== null);
-        }
-
-        // ELABORAZIONE VENDITE 24H
-        function processLogVendite(text) {
-            const rows = text.split(/\r?\n/);
-            rows.shift();
-            salesLog24h.clear();
+        function parseLog(text) {
+            const map = new Map();
             const now = new Date();
-            const oneDayMs = 24 * 60 * 60 * 1000;
-            const regex = /,(?=(?:(?:[^"]*"){2})*[^"]*$)/;
-
-            rows.forEach(row => {
-                if (!row.trim()) return;
-                const cols = row.split(regex).map(s => s.replace(/^"|"$/g, '').trim());
-                if (cols.length < 3) return;
-                
-                // Gestione date flessibile (Google format: GG/MM/AAAA)
-                const dateParts = cols[0].split(/[\/ :]/);
-                let entryDate;
-                if(dateParts.length >= 3) {
-                    // Tenta GG/MM/AAAA
-                    entryDate = new Date(dateParts[2], dateParts[1]-1, dateParts[0], dateParts[3]||0, dateParts[4]||0);
-                } else {
-                    entryDate = new Date(cols[0]);
-                }
-
-                if (!isNaN(entryDate.getTime()) && (now - entryDate <= oneDayMs)) {
-                    const asin = cols[1];
-                    const qty = parseInt(cols[2]) || 0;
-                    salesLog24h.set(asin, (salesLog24h.get(asin) || 0) + qty);
+            const lines = text.split('\n').slice(1);
+            lines.forEach(l => {
+                const c = l.split(/,(?=(?:(?:[^"]*"){2})*[^"]*$)/);
+                if(c.length < 3) return;
+                const d = parseDate(c[0]);
+                if(d && (now - d < 86400000)) {
+                    const asin = c[1].trim();
+                    map.set(asin, (map.get(asin) || 0) + parseInt(c[2] || 0));
                 }
             });
+            return map;
         }
 
-        function switchTab(view) {
-            if (view === 'inventory') {
-                el('inventory-view').classList.remove('hidden'); el('inventory-container-wrapper').classList.remove('hidden');
-                el('bestsellers-header').classList.add('hidden'); el('bestsellers-container-wrapper').classList.add('hidden');
-                el('nav-inventory').classList.add('text-brand-orange', 'border-brand-orange');
-                el('nav-bestsellers').classList.remove('text-brand-orange', 'border-brand-orange');
-            } else {
-                el('inventory-view').classList.add('hidden'); el('inventory-container-wrapper').classList.add('hidden');
-                el('bestsellers-header').classList.remove('hidden'); el('bestsellers-container-wrapper').classList.remove('hidden');
-                el('nav-bestsellers').classList.add('text-brand-orange', 'border-brand-orange');
-                el('nav-inventory').classList.remove('text-brand-orange', 'border-brand-orange');
-                renderBestSellers();
-            }
+        function parseDate(s) {
+            const p = s.split(/[\/ :]/);
+            if(p.length < 3) return null;
+            return new Date(p[2], p[1]-1, p[0], p[3]||0, p[4]||0);
         }
 
-        function renderTable() {
-            const term = el('search-box').value.toLowerCase();
-            const cat = el('filter-category').value, br = el('filter-brand').value, sh = el('filter-shelf').value;
-            
-            const filtered = allProducts.filter(p => 
-                (!cat || p.categoria === cat) && 
-                (!br || p.brand === br) && 
-                (!sh || p.scaffale === sh) && 
-                (!term || p.searchData.includes(term))
+        function parseInventory(text, s24) {
+            return text.split('\n').slice(1).map(l => {
+                const c = l.split(/,(?=(?:(?:[^"]*"){2})*[^"]*$)/).map(x => x.replace(/"/g,'').trim());
+                if(!c[CONFIG.COLS.SKU]) return null;
+                const q7 = (parseFloat(c[CONFIG.COLS.FBA7]) || 0) + (parseFloat(c[CONFIG.COLS.TEMU7]) || 0);
+                const qm = parseFloat(c[CONFIG.COLS.QTY]) || 0;
+                return {
+                    sku: c[CONFIG.COLS.SKU],
+                    asin: c[CONFIG.COLS.ASIN],
+                    brand: c[CONFIG.COLS.F_BRAND] || '',
+                    cat: c[CONFIG.COLS.E_CAT] || '',
+                    img: c[CONFIG.COLS.AB_IMG],
+                    qty: qm,
+                    shelf: c[CONFIG.COLS.I_SCAFFALE],
+                    qty24: s24.get(c[CONFIG.COLS.ASIN]) || 0,
+                    qty7: q7,
+                    qty30: parseInt(c[CONFIG.COLS.V30]) || 0,
+                    qty365: parseInt(c[CONFIG.COLS.V365]) || 0,
+                    qtyRestock: q7 > 0 ? (qm / q7) : 99,
+                    search: (c[CONFIG.COLS.SKU] + c[CONFIG.COLS.F_BRAND] + c[CONFIG.COLS.I_SCAFFALE]).toLowerCase()
+                };
+            }).filter(x => x);
+        }
+
+        // MOTORE DI RENDERING ASINCRONO (CHUNKING)
+        async function render() {
+            const query = document.getElementById('search-box').value.toLowerCase();
+            const cat = document.getElementById('f-cat').value;
+            const brand = document.getElementById('f-brand').value;
+            const shelf = document.getElementById('f-shelf').value;
+
+            let filtered = dataStore.filter(p => 
+                (!query || p.search.includes(query)) &&
+                (!cat || p.cat === cat) &&
+                (!brand || p.brand === brand) &&
+                (!shelf || p.shelf === shelf)
             );
 
-            const tb = el('results-table-body'), cards = el('results-cards-container');
-            tb.innerHTML = ''; cards.innerHTML = '';
-
-            filtered.forEach(p => {
-                const img = p.immagine || `https://placehold.co/150x150/FD991F/white?text=${p.sku[0]}`;
-                tb.innerHTML += `
-                    <tr class="hover:bg-gray-50">
-                        <td class="p-3 text-center"><img src="${img}" class="w-[150px] h-[150px] object-contain rounded-md bg-white mx-auto shadow-sm"></td>
-                        <td class="p-3 skugls"><button class="sku-button" onclick="openProductModal('${p.sku}')">${p.sku}</button></td>
-                        <td class="p-3 text-sm text-gray-700">${p.categoria}</td>
-                        <td class="p-3 text-2xl font-bold text-gray-900">${p.brand}</td>
-                        <td class="p-3 text-4xl font-bold text-center text-gray-600">${p.qty}</td>
-                        <td class="p-3 text-5xl font-bold text-brand-orange max-w-[300px] break-words">${p.scaffale}</td>
-                    </tr>`;
-                
-                cards.innerHTML += `
-                    <div class="p-4 border-b border-gray-200">
-                        <div class="flex items-center gap-4">
-                            <img src="${img}" class="w-[100px] h-[100px] object-contain bg-white rounded shadow-sm">
-                            <div class="flex-grow">
-                                <button class="sku-button text-lg" onclick="openProductModal('${p.sku}')">${p.sku}</button>
-                                <p class="text-sm font-medium">${p.brand}</p>
-                                <p class="text-2xl font-bold">QTY: ${p.qty}</p>
-                                <p class="text-3xl font-black text-brand-orange">Scaff: ${p.scaffale}</p>
-                            </div>
-                        </div>
-                    </div>`;
-            });
-        }
-
-        function sortBestSellers(col) {
-            sortState.direction = (sortState.column === col && sortState.direction === 'desc') ? 'asc' : 'desc';
-            sortState.column = col;
-            renderBestSellers();
-        }
-
-        // RENDER BEST SELLERS SENZA LIMITI DI CARICAMENTO
-        function renderBestSellers() {
-            const data = allProducts.filter(p => p.qty24 > 0 || p.qty7 > 0 || p.qty30 > 0 || p.qty365 > 0);
-            
-            data.sort((a, b) => {
-                let valA = a[sortState.column];
-                let valB = b[sortState.column];
-                return sortState.direction === 'asc' ? valA - valB : valB - valA;
-            });
-
-            const tb = el('bestsellers-table-body'), cards = el('bestsellers-cards-container');
-            tb.innerHTML = ''; cards.innerHTML = '';
-
-            if (data.length === 0) {
-                tb.innerHTML = '<tr><td colspan="7" class="p-8 text-center">Nessun dato di vendita trovato.</td></tr>';
-                return;
+            if(activeView === 'bestsellers') {
+                filtered = filtered.filter(p => p.qty7 > 0 || p.qty24 > 0);
+                filtered.sort((a,b) => (a[sortKey] - b[sortKey]) * sortDir);
             }
 
-            // Reset frecce ordinamento
-            ['24h', '7g', '30g', '365g', 'restock'].forEach(id => {
-                const span = el('sort-arrow-' + id);
-                if(span) span.textContent = '';
-            });
-            const arrowMap = { qty24: '24h', qty7: '7g', qty30: '30g', qty365: '365g', qtyRestockWeeks: 'restock' };
-            el('sort-arrow-' + arrowMap[sortState.column]).textContent = sortState.direction === 'asc' ? ' ↑' : ' ↓';
+            const targetTable = activeView === 'inventory' ? 'tbody-inv' : 'tbody-bs';
+            const targetCards = activeView === 'inventory' ? 'cards-inv' : 'cards-bs';
+            
+            document.getElementById(targetTable).innerHTML = '';
+            document.getElementById(targetCards).innerHTML = '';
 
-            data.forEach(p => {
-                const img = p.immagine || `https://placehold.co/150x150/FD991F/white?text=${p.sku[0]}`;
-                const restockVal = p.qtyRestockWeeks.toFixed(2);
-                const isAlert = p.qtyRestockWeeks < 4;
-                const rowClass = isAlert ? 'low-stock-alert' : '';
-
-                tb.innerHTML += `
-                    <tr class="${rowClass} hover:bg-opacity-80">
-                        <td class="p-3 text-center"><img src="${img}" class="w-[150px] h-[150px] object-contain rounded-md bg-white mx-auto"></td>
-                        <td class="p-3 skugls"><button class="sku-button" onclick="openProductModal('${p.sku}')">${p.sku}</button></td>
-                        <td class="p-3 text-4xl font-bold text-center text-red-600">${p.qty24}</td>
-                        <td class="p-3 text-4xl font-bold text-center text-gray-800">${p.qty7}</td>
-                        <td class="p-3 text-4xl font-bold text-center text-gray-800">${p.qty30}</td>
-                        <td class="p-3 text-4xl font-bold text-center text-gray-800">${p.qty365}</td>
-                        <td class="p-3 text-5xl font-black text-center ${isAlert ? 'text-red-700' : 'text-green-700'}">${restockVal}</td>
-                    </tr>`;
+            // Rendering a blocchi di 40 per non bloccare la UI
+            const chunkSize = 40;
+            for (let i = 0; i < filtered.length; i += chunkSize) {
+                const chunk = filtered.slice(i, i + chunkSize);
+                const html = chunk.map(p => activeView === 'inventory' ? rowInv(p) : rowBs(p)).join('');
+                const cards = chunk.map(p => activeView === 'inventory' ? cardInv(p) : cardBs(p)).join('');
                 
-                cards.innerHTML += `
-                    <div class="p-4 border-b border-gray-200 ${rowClass}">
-                        <div class="flex items-center gap-4 mb-3">
-                            <img src="${img}" class="w-[80px] h-[80px] object-contain bg-white rounded">
-                            <div>
-                                <button class="sku-button" onclick="openProductModal('${p.sku}')">${p.sku}</button>
-                                <p class="text-xs">${p.brand}</p>
-                            </div>
-                        </div>
-                        <div class="grid grid-cols-5 gap-1 text-center">
-                            <div><p class="text-[10px] text-gray-500">24H</p><p class="text-xl font-bold text-red-600">${p.qty24}</p></div>
-                            <div><p class="text-[10px] text-gray-500">7G</p><p class="text-xl font-bold">${p.qty7}</p></div>
-                            <div><p class="text-[10px] text-gray-500">30G</p><p class="text-xl font-bold">${p.qty30}</p></div>
-                            <div><p class="text-[10px] text-gray-500">365G</p><p class="text-xl font-bold">${p.qty365}</p></div>
-                            <div><p class="text-[10px] text-brand-orange font-bold uppercase">Restock</p><p class="text-2xl font-black ${isAlert ? 'text-red-700' : 'text-green-700'}">${restockVal}</p></div>
-                        </div>
-                    </div>`;
-            });
+                document.getElementById(targetTable).insertAdjacentHTML('beforeend', html);
+                document.getElementById(targetCards).insertAdjacentHTML('beforeend', cards);
+                
+                if (i + chunkSize < filtered.length) {
+                    await new Promise(r => setTimeout(r, 1)); // Yield al browser
+                }
+            }
         }
 
-        function populateFilters() {
-            const cats = new Set(), brs = new Set(), shs = new Set();
-            allProducts.forEach(p => { if(p.categoria) cats.add(p.categoria); if(p.brand) brs.add(p.brand); if(p.scaffale) shs.add(p.scaffale); });
+        function rowInv(p) {
+            return `<tr class="hover:bg-gray-50">
+                <td class="p-2"><img src="${p.img}" class="w-24 h-24 object-contain bg-white rounded border"></td>
+                <td class="p-4 skugls"><span class="sku-link" onclick="openModal('${p.sku}')">${p.sku}</span></td>
+                <td class="p-4 text-xs">${p.cat}</td>
+                <td class="p-4 font-bold text-xl">${p.brand}</td>
+                <td class="p-4 text-4xl font-black text-center text-gray-500">${p.qty}</td>
+                <td class="p-4 text-5xl font-black text-brand-orange">${p.shelf}</td>
+            </tr>`;
+        }
+
+        function rowBs(p) {
+            const isLow = p.qtyRestock < 4;
+            const val = p.qtyRestock.toFixed(2);
+            return `<tr class="${isLow ? 'low-stock-alert' : ''} hover:bg-black/5">
+                <td class="p-2"><img src="${p.img}" class="w-24 h-24 object-contain bg-white rounded border"></td>
+                <td class="p-4 skugls font-bold"><span class="sku-link" onclick="openModal('${p.sku}')">${p.sku}</span></td>
+                <td class="p-4 text-4xl font-black text-red-600 text-center">${p.qty24}</td>
+                <td class="p-4 text-4xl font-black text-center">${p.qty7}</td>
+                <td class="p-4 text-4xl font-bold text-center text-gray-400">${p.qty30}</td>
+                <td class="p-4 text-4xl font-bold text-center text-gray-400">${p.qty365}</td>
+                <td class="p-4 text-5xl font-black text-center ${isLow ? 'text-red-700' : 'text-green-700'}">${val}</td>
+            </tr>`;
+        }
+
+        // Funzioni UI Mobile (Card) semplificate
+        function cardInv(p) {
+            return `<div class="p-4 flex gap-4">
+                <img src="${p.img}" class="w-24 h-24 object-contain bg-white border rounded">
+                <div class="flex-grow">
+                    <div class="sku-link" onclick="openModal('${p.sku}')">${p.sku}</div>
+                    <div class="font-bold">${p.brand}</div>
+                    <div class="text-3xl font-black text-brand-orange">${p.shelf} <span class="text-sm text-gray-400 font-normal">QTY:${p.qty}</span></div>
+                </div>
+            </div>`;
+        }
+
+        function cardBs(p) {
+            const isLow = p.qtyRestock < 4;
+            return `<div class="p-4 ${isLow ? 'low-stock-alert' : ''}">
+                <div class="flex gap-4 mb-2">
+                    <img src="${p.img}" class="w-16 h-16 object-contain bg-white border">
+                    <div class="sku-link" onclick="openModal('${p.sku}')">${p.sku}</div>
+                </div>
+                <div class="grid grid-cols-5 text-center font-black">
+                    <div class="text-red-600">24h<br>${p.qty24}</div>
+                    <div>7g<br>${p.qty7}</div>
+                    <div class="text-gray-400">30g<br>${p.qty30}</div>
+                    <div class="text-gray-400">365g<br>${p.qty365}</div>
+                    <div class="${isLow?'text-red-700':'text-green-700'}">Wk<br>${p.qtyRestock.toFixed(1)}</div>
+                </div>
+            </div>`;
+        }
+
+        function switchTab(t) {
+            activeView = t;
+            el('view-inventory').classList.toggle('hidden', t !== 'inventory');
+            el('view-bs').classList.toggle('hidden', t !== 'bestsellers');
+            el('filter-section').classList.toggle('hidden', t !== 'inventory');
+            el('btn-inv').className = t === 'inventory' ? 'px-4 py-2 font-bold border-b-4 border-brand-orange text-brand-orange' : 'px-4 py-2 font-bold border-b-4 border-transparent';
+            el('btn-bs').className = t === 'bestsellers' ? 'px-4 py-2 font-bold border-b-4 border-brand-orange text-brand-orange' : 'px-4 py-2 font-bold border-b-4 border-transparent';
+            render();
+        }
+
+        function resort(k) {
+            if(sortKey === k) sortDir *= -1;
+            else { sortKey = k; sortDir = -1; }
+            render();
+        }
+
+        function showLoading(show, text="") {
+            el('loader-area').classList.toggle('hidden', !show);
+            if(text) el('loader-text').innerText = text;
+        }
+
+        function populateSelects() {
+            const cats = new Set(), brands = new Set(), shelves = new Set();
+            dataStore.forEach(p => { if(p.cat) cats.add(p.cat); if(p.brand) brands.add(p.brand); if(p.shelf) shelves.add(p.shelf); });
             const fill = (id, set) => { const s = el(id); [...set].sort().forEach(v => { const o = document.createElement('option'); o.value = v; o.text = v; s.add(o); }); };
-            fill('filter-category', cats); fill('filter-brand', brs); fill('filter-shelf', shs);
+            fill('f-cat', cats); fill('f-brand', brands); fill('f-shelf', shelves);
         }
 
-        function openProductModal(sku) {
-            const p = allProducts.find(x => x.sku === sku); if(!p) return;
-            el('modal-img').src = p.immagine || `https://placehold.co/150x150/FD991F/white?text=?`;
-            el('modal-sku').textContent = p.sku;
-            el('modal-details').textContent = `Brand: ${p.brand} | Cat: ${p.categoria}`;
-            el('modal-stock').textContent = `Giacenza Mag: ${p.qty} | Scaffale: ${p.scaffale}`;
-            el('product-modal').classList.remove('hidden');
+        function openModal(sku) {
+            const p = dataStore.find(x => x.sku === sku);
+            el('m-img').src = p.img;
+            el('m-sku').innerText = p.sku;
+            el('m-brand').innerText = p.brand;
+            el('m-qty').innerText = `Giacenza: ${p.qty} - Scaffale: ${p.shelf}`;
+            el('modal').classList.remove('hidden');
         }
-        function closeProductModal() { el('product-modal').classList.add('hidden'); }
+        function closeModal() { el('modal').classList.add('hidden'); }
+
+        document.getElementById('search-box').addEventListener('input', () => {
+            clearTimeout(window.searchTimeout);
+            window.searchTimeout = setTimeout(render, 300);
+        });
+
+        init();
     </script>
 </body>
 </html>
