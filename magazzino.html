@@ -30,10 +30,11 @@
         }
         .sku-button:hover { text-decoration: underline; color: #E48A1A; }
 
-        .editable-cell { cursor: pointer; border: 1px solid transparent; border-radius: 4px; transition: all 0.2s; }
-        .editable-cell:hover { background-color: #FFF7ED; border: 1px dashed var(--brand-orange); }
-
+        /* Colore per prodotti in esaurimento (Restock < 4 settimane) */
         .low-stock-alert { background-color: #F5DEB3 !important; }
+
+        /* Header tabella fisso durante lo scroll */
+        thead th { position: sticky; top: 0; z-index: 10; background: var(--brand-gray); }
 
         @keyframes rotation { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
     </style>
@@ -78,14 +79,14 @@
             <div id="status-message" class="p-8 text-center">
                 <div class="flex flex-col items-center justify-center space-y-4">
                     <span class="loader"></span>
-                    <span class="text-gray-500 font-medium">Caricamento dati...</span>
+                    <span class="text-gray-500 font-medium">Caricamento in corso di tutti gli articoli...</span>
                 </div>
             </div>
 
             <div id="inventory-container-wrapper">
-                <div id="results-container" class="overflow-x-auto hidden md:block">
+                <div id="results-container" class="overflow-x-auto hidden md:block max-h-[800px]">
                     <table class="w-full min-w-max">
-                        <thead class="bg-brand-gray text-white sticky top-0">
+                        <thead class="bg-brand-gray text-white">
                             <tr>
                                 <th class="p-4 text-left text-sm font-semibold uppercase">Immagine</th>
                                 <th class="p-4 skugls text-left text-sm font-semibold uppercase">SKU GLS</th>
@@ -102,9 +103,9 @@
             </div>
 
             <div id="bestsellers-container-wrapper" class="hidden">
-                <div id="bestsellers-table-container" class="overflow-x-auto hidden md:block">
+                <div id="bestsellers-table-container" class="overflow-x-auto hidden md:block max-h-[800px]">
                     <table class="w-full min-w-max">
-                        <thead class="bg-brand-gray text-white sticky top-0">
+                        <thead class="bg-brand-gray text-white">
                             <tr>
                                 <th class="p-4 text-left text-sm font-semibold uppercase">Immagine</th>
                                 <th class="p-4 skugls text-left text-sm font-semibold uppercase">SKU GLS</th>
@@ -112,7 +113,7 @@
                                 <th onclick="sortBestSellers('qty7')" class="p-4 text-center text-sm font-semibold uppercase cursor-pointer hover:bg-opacity-80">7 GG <span id="sort-arrow-7g"></span></th>
                                 <th onclick="sortBestSellers('qty30')" class="p-4 text-center text-sm font-semibold uppercase cursor-pointer hover:bg-opacity-80">30 GG <span id="sort-arrow-30g"></span></th>
                                 <th onclick="sortBestSellers('qty365')" class="p-4 text-center text-sm font-semibold uppercase cursor-pointer hover:bg-opacity-80">365 GG <span id="sort-arrow-365g"></span></th>
-                                <th onclick="sortBestSellers('qtyRestockWeeks')" class="p-4 text-center text-sm font-semibold uppercase cursor-pointer hover:bg-opacity-80">RESTOCK SETTIMANE <span id="sort-arrow-restock"></span></th>
+                                <th onclick="sortBestSellers('qtyRestockWeeks')" class="p-4 text-center text-sm font-semibold uppercase cursor-pointer hover:bg-opacity-80">RESTOCK WEEKS <span id="sort-arrow-restock"></span></th>
                             </tr>
                         </thead>
                         <tbody id="bestsellers-table-body" class="divide-y divide-gray-200"></tbody>
@@ -145,7 +146,7 @@
     </div>
 
     <script>
-        // CONFIGURAZIONE
+        // CONFIGURAZIONE CSV
         const CSV_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQLf2HBC2g4q3L-hER7WPpYixWIIqJyV6MAkWm4ENZlQNrLxbroZRP3HBZ7Uzl510OVON8q590_YH_S/pub?gid=938359466&single=true&output=csv';
         const LOG_VENDITE_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQLf2HBC2g4q3L-hER7WPpYixWIIqJyV6MAkWm4ENZlQNrLxbroZRP3HBZ7Uzl510OVON8q590_YH_S/pub?gid=135483104&single=true&output=csv';
 
@@ -153,7 +154,7 @@
         let salesLog24h = new Map();
         let sortState = { column: 'qty24', direction: 'desc' };
 
-        // Mapping Colonne
+        // Mapping Colonne Magazzino
         const COLS = { 
             A_ASIN: 0, 
             C_SKU: 2, 
@@ -163,7 +164,7 @@
             Q_7G_TEMU: 16, 
             R_30G: 17, 
             S_365G: 18, 
-            AB_IMG: 28 
+            AB_IMG: 28
         };
 
         const el = id => document.getElementById(id);
@@ -180,17 +181,21 @@
             try {
                 const [invRes, logRes] = await Promise.all([fetch(CSV_URL), fetch(LOG_VENDITE_URL)]);
                 const [invText, logText] = await Promise.all([invRes.text(), logRes.text()]);
+                
                 processLogVendite(logText);
                 allProducts = parseCSVFast(invText);
+                
                 populateFilters();
                 renderTable();
                 el('status-message').classList.add('hidden');
                 switchTab('inventory');
             } catch (err) {
-                el('status-message').innerHTML = `<span class="text-red-600">Errore caricamento.</span>`;
+                console.error(err);
+                el('status-message').innerHTML = `<span class="text-red-600">Errore nel caricamento dati.</span>`;
             }
         }
 
+        // PARSER CSV VELOCE CON REGEX
         function parseCSVFast(text) {
             const rows = text.split(/\r?\n/);
             if (rows.length > 0) rows.shift();
@@ -206,28 +211,30 @@
                 const fba7 = parseFloat(cols[COLS.N_7G_FBA]) || 0;
                 const temu7 = parseFloat(cols[COLS.Q_7G_TEMU]) || 0;
                 const total7 = fba7 + temu7;
+                const asin = cols[COLS.A_ASIN] || '';
 
-                // Nuova Formula: QTY MAG / (7G FBA + 7G TEMU)
-                let restockSettimane = total7 > 0 ? (qtyMag / total7) : 99; // 99 se non ci sono vendite per evitare infinity
+                // Calcolo Restock: QTY / Vendite settimanali totali
+                let restockSettimane = total7 > 0 ? (qtyMag / total7) : 99;
 
                 return {
                     sku: sku,
-                    asin: cols[COLS.A_ASIN] || '',
+                    asin: asin,
                     immagine: cols[COLS.AB_IMG] || '',
                     categoria: cols[COLS.E_CAT] || '',
                     brand: cols[COLS.F_BRAND] || '',
                     qty: qtyMag,
                     scaffale: cols[COLS.I_SCAFFALE] || '',
-                    qty24: salesLog24h.get(cols[COLS.A_ASIN]) || 0,
+                    qty24: salesLog24h.get(asin) || 0,
                     qty7: total7,
                     qty30: parseInt(cols[COLS.R_30G]) || 0,
                     qty365: parseInt(cols[COLS.S_365G]) || 0,
                     qtyRestockWeeks: restockSettimane,
-                    searchData: (cols[COLS.A_ASIN] + " " + sku + " " + cols[COLS.E_CAT] + " " + cols[COLS.F_BRAND]).toLowerCase()
+                    searchData: (asin + " " + sku + " " + cols[COLS.E_CAT] + " " + cols[COLS.F_BRAND]).toLowerCase()
                 };
             }).filter(p => p !== null);
         }
 
+        // ELABORAZIONE VENDITE 24H
         function processLogVendite(text) {
             const rows = text.split(/\r?\n/);
             rows.shift();
@@ -240,9 +247,21 @@
                 if (!row.trim()) return;
                 const cols = row.split(regex).map(s => s.replace(/^"|"$/g, '').trim());
                 if (cols.length < 3) return;
-                const entryDate = new Date(cols[0]);
+                
+                // Gestione date flessibile (Google format: GG/MM/AAAA)
+                const dateParts = cols[0].split(/[\/ :]/);
+                let entryDate;
+                if(dateParts.length >= 3) {
+                    // Tenta GG/MM/AAAA
+                    entryDate = new Date(dateParts[2], dateParts[1]-1, dateParts[0], dateParts[3]||0, dateParts[4]||0);
+                } else {
+                    entryDate = new Date(cols[0]);
+                }
+
                 if (!isNaN(entryDate.getTime()) && (now - entryDate <= oneDayMs)) {
-                    salesLog24h.set(cols[1], (salesLog24h.get(cols[1]) || 0) + parseInt(cols[2] || 0));
+                    const asin = cols[1];
+                    const qty = parseInt(cols[2]) || 0;
+                    salesLog24h.set(asin, (salesLog24h.get(asin) || 0) + qty);
                 }
             });
         }
@@ -265,12 +284,18 @@
         function renderTable() {
             const term = el('search-box').value.toLowerCase();
             const cat = el('filter-category').value, br = el('filter-brand').value, sh = el('filter-shelf').value;
-            const filtered = allProducts.filter(p => (!cat || p.categoria === cat) && (!br || p.brand === br) && (!sh || p.scaffale === sh) && (!term || p.searchData.includes(term)));
+            
+            const filtered = allProducts.filter(p => 
+                (!cat || p.categoria === cat) && 
+                (!br || p.brand === br) && 
+                (!sh || p.scaffale === sh) && 
+                (!term || p.searchData.includes(term))
+            );
 
             const tb = el('results-table-body'), cards = el('results-cards-container');
             tb.innerHTML = ''; cards.innerHTML = '';
 
-            filtered.slice(0, 100).forEach(p => {
+            filtered.forEach(p => {
                 const img = p.immagine || `https://placehold.co/150x150/FD991F/white?text=${p.sku[0]}`;
                 tb.innerHTML += `
                     <tr class="hover:bg-gray-50">
@@ -303,16 +328,35 @@
             renderBestSellers();
         }
 
+        // RENDER BEST SELLERS SENZA LIMITI DI CARICAMENTO
         function renderBestSellers() {
-            const data = allProducts.filter(p => p.qty7 > 0 || p.qty24 > 0);
-            data.sort((a, b) => sortState.direction === 'asc' ? a[sortState.column] - b[sortState.column] : b[sortState.column] - a[sortState.column]);
+            const data = allProducts.filter(p => p.qty24 > 0 || p.qty7 > 0 || p.qty30 > 0 || p.qty365 > 0);
+            
+            data.sort((a, b) => {
+                let valA = a[sortState.column];
+                let valB = b[sortState.column];
+                return sortState.direction === 'asc' ? valA - valB : valB - valA;
+            });
 
             const tb = el('bestsellers-table-body'), cards = el('bestsellers-cards-container');
             tb.innerHTML = ''; cards.innerHTML = '';
 
-            data.slice(0, 100).forEach(p => {
+            if (data.length === 0) {
+                tb.innerHTML = '<tr><td colspan="7" class="p-8 text-center">Nessun dato di vendita trovato.</td></tr>';
+                return;
+            }
+
+            // Reset frecce ordinamento
+            ['24h', '7g', '30g', '365g', 'restock'].forEach(id => {
+                const span = el('sort-arrow-' + id);
+                if(span) span.textContent = '';
+            });
+            const arrowMap = { qty24: '24h', qty7: '7g', qty30: '30g', qty365: '365g', qtyRestockWeeks: 'restock' };
+            el('sort-arrow-' + arrowMap[sortState.column]).textContent = sortState.direction === 'asc' ? ' ↑' : ' ↓';
+
+            data.forEach(p => {
                 const img = p.immagine || `https://placehold.co/150x150/FD991F/white?text=${p.sku[0]}`;
-                const val = p.qtyRestockWeeks.toFixed(2);
+                const restockVal = p.qtyRestockWeeks.toFixed(2);
                 const isAlert = p.qtyRestockWeeks < 4;
                 const rowClass = isAlert ? 'low-stock-alert' : '';
 
@@ -324,7 +368,7 @@
                         <td class="p-3 text-4xl font-bold text-center text-gray-800">${p.qty7}</td>
                         <td class="p-3 text-4xl font-bold text-center text-gray-800">${p.qty30}</td>
                         <td class="p-3 text-4xl font-bold text-center text-gray-800">${p.qty365}</td>
-                        <td class="p-3 text-5xl font-black text-center ${isAlert ? 'text-red-700' : 'text-green-700'}">${val}</td>
+                        <td class="p-3 text-5xl font-black text-center ${isAlert ? 'text-red-700' : 'text-green-700'}">${restockVal}</td>
                     </tr>`;
                 
                 cards.innerHTML += `
@@ -341,7 +385,7 @@
                             <div><p class="text-[10px] text-gray-500">7G</p><p class="text-xl font-bold">${p.qty7}</p></div>
                             <div><p class="text-[10px] text-gray-500">30G</p><p class="text-xl font-bold">${p.qty30}</p></div>
                             <div><p class="text-[10px] text-gray-500">365G</p><p class="text-xl font-bold">${p.qty365}</p></div>
-                            <div><p class="text-[10px] text-brand-orange font-bold">WEEKS</p><p class="text-2xl font-black ${isAlert ? 'text-red-700' : 'text-green-700'}">${val}</p></div>
+                            <div><p class="text-[10px] text-brand-orange font-bold uppercase">Restock</p><p class="text-2xl font-black ${isAlert ? 'text-red-700' : 'text-green-700'}">${restockVal}</p></div>
                         </div>
                     </div>`;
             });
@@ -359,7 +403,7 @@
             el('modal-img').src = p.immagine || `https://placehold.co/150x150/FD991F/white?text=?`;
             el('modal-sku').textContent = p.sku;
             el('modal-details').textContent = `Brand: ${p.brand} | Cat: ${p.categoria}`;
-            el('modal-stock').textContent = `Giacenza: ${p.qty} | Scaffale: ${p.scaffale}`;
+            el('modal-stock').textContent = `Giacenza Mag: ${p.qty} | Scaffale: ${p.scaffale}`;
             el('product-modal').classList.remove('hidden');
         }
         function closeProductModal() { el('product-modal').classList.add('hidden'); }
