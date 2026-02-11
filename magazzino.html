@@ -6,10 +6,9 @@
     <title>Ricerca Magazzino - I LOVE SHOPPING</title>
     
     <script src="https://cdn.tailwindcss.com"></script>
-    
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;900&display=swap" rel="stylesheet">
     
     <style>
         :root { --brand-orange: #FD991F; --brand-gray: #7A8686; }
@@ -34,15 +33,6 @@
         .editable-cell { cursor: pointer; border: 1px solid transparent; border-radius: 4px; transition: all 0.2s; }
         .editable-cell:hover { background-color: #FFF7ED; border: 1px dashed var(--brand-orange); }
 
-        .gemini-button {
-            background-color: var(--brand-orange); color: white; font-weight: 600;
-            padding: 10px 16px; border-radius: 8px; border: none; cursor: pointer;
-            transition: background-color 0.2s ease; display: inline-flex; align-items: center; gap: 8px;
-        }
-        .gemini-button:hover { background-color: #E48A1A; }
-        .gemini-button:disabled { background-color: #fcae4a; cursor: not-allowed; }
-
-        /* Colore per prodotti in esaurimento */
         .low-stock-alert { background-color: #F5DEB3 !important; }
 
         @keyframes rotation { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
@@ -74,13 +64,12 @@
             </header> 
             <div class="bg-white rounded-2xl shadow-lg p-6 md:p-8 mb-8">
                 <div class="mb-8">
-                    <label for="search-box" class="sr-only">Cerca</label>
-                    <input type="text" id="search-box" placeholder="Cerca per SKU, nome, categoria, brand..." class="w-full p-4 border border-gray-300 rounded-lg text-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-brand-orange focus:border-transparent">
+                    <input type="text" id="search-box" placeholder="Cerca per SKU, nome, categoria, brand..." class="w-full p-4 border border-gray-300 rounded-lg text-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-brand-orange">
                 </div>
                 <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    <div><label class="block text-sm font-medium text-gray-700 mb-2">Categoria</label><select id="filter-category" class="w-full p-3 border border-gray-300 rounded-lg shadow-sm bg-white focus:outline-none focus:ring-2 focus:ring-brand-orange"><option value="">Tutte le categorie</option></select></div>
-                    <div><label class="block text-sm font-medium text-gray-700 mb-2">Brand</label><select id="filter-brand" class="w-full p-3 border border-gray-300 rounded-lg shadow-sm bg-white focus:outline-none focus:ring-2 focus:ring-brand-orange"><option value="">Tutti i brand</option></select></div>
-                    <div><label class="block text-sm font-medium text-gray-700 mb-2">Scaffale</label><select id="filter-shelf" class="w-full p-3 border border-gray-300 rounded-lg shadow-sm bg-white focus:outline-none focus:ring-2 focus:ring-brand-orange"><option value="">Tutti gli scaffali</option></select></div>
+                    <div><label class="block text-sm font-medium text-gray-700 mb-2">Categoria</label><select id="filter-category" class="w-full p-3 border border-gray-300 rounded-lg shadow-sm bg-white"><option value="">Tutte le categorie</option></select></div>
+                    <div><label class="block text-sm font-medium text-gray-700 mb-2">Brand</label><select id="filter-brand" class="w-full p-3 border border-gray-300 rounded-lg shadow-sm bg-white"><option value="">Tutti i brand</option></select></div>
+                    <div><label class="block text-sm font-medium text-gray-700 mb-2">Scaffale</label><select id="filter-shelf" class="w-full p-3 border border-gray-300 rounded-lg shadow-sm bg-white"><option value="">Tutti gli scaffali</option></select></div>
                 </div>
             </div>
         </div>
@@ -89,7 +78,7 @@
             <div id="status-message" class="p-8 text-center">
                 <div class="flex flex-col items-center justify-center space-y-4">
                     <span class="loader"></span>
-                    <span class="text-gray-500 font-medium">Caricamento dati dal magazzino...</span>
+                    <span class="text-gray-500 font-medium">Caricamento dati...</span>
                 </div>
             </div>
 
@@ -102,7 +91,7 @@
                                 <th class="p-4 skugls text-left text-sm font-semibold uppercase">SKU GLS</th>
                                 <th class="p-4 text-left text-sm font-semibold uppercase">Categoria</th>
                                 <th class="p-4 text-left text-sm font-semibold uppercase">Brand</th>
-                                <th class="p-4 text-left text-sm font-semibold uppercase text-center">QTY Mag</th>
+                                <th class="p-4 text-center text-sm font-semibold uppercase">QTY Mag</th>
                                 <th class="p-4 text-left text-sm font-semibold uppercase">Scaffale</th>
                             </tr>
                         </thead>
@@ -119,11 +108,11 @@
                             <tr>
                                 <th class="p-4 text-left text-sm font-semibold uppercase">Immagine</th>
                                 <th class="p-4 skugls text-left text-sm font-semibold uppercase">SKU GLS</th>
-                                <th id="th-24h" onclick="sortBestSellers('qty24')" class="p-4 text-left text-sm font-semibold uppercase cursor-pointer hover:bg-opacity-80 text-center">24 H <span id="sort-arrow-24h"></span></th>
-                                <th id="th-7g" onclick="sortBestSellers('qty7')" class="p-4 text-left text-sm font-semibold uppercase cursor-pointer hover:bg-opacity-80 text-center">7 GG <span id="sort-arrow-7g"></span></th>
-                                <th id="th-30g" onclick="sortBestSellers('qty30')" class="p-4 text-left text-sm font-semibold uppercase cursor-pointer hover:bg-opacity-80 text-center">30 GG <span id="sort-arrow-30g"></span></th>
-                                <th id="th-365g" onclick="sortBestSellers('qty365')" class="p-4 text-left text-sm font-semibold uppercase cursor-pointer hover:bg-opacity-80 text-center">365 GG <span id="sort-arrow-365g"></span></th>
-                                <th id="th-restock" onclick="sortBestSellers('qtyRestockWeeks')" class="p-4 text-left text-sm font-semibold uppercase cursor-pointer hover:bg-opacity-80 text-center">RESTOCK SETTIMANE <span id="sort-arrow-restock"></span></th>
+                                <th onclick="sortBestSellers('qty24')" class="p-4 text-center text-sm font-semibold uppercase cursor-pointer hover:bg-opacity-80">24 H <span id="sort-arrow-24h"></span></th>
+                                <th onclick="sortBestSellers('qty7')" class="p-4 text-center text-sm font-semibold uppercase cursor-pointer hover:bg-opacity-80">7 GG <span id="sort-arrow-7g"></span></th>
+                                <th onclick="sortBestSellers('qty30')" class="p-4 text-center text-sm font-semibold uppercase cursor-pointer hover:bg-opacity-80">30 GG <span id="sort-arrow-30g"></span></th>
+                                <th onclick="sortBestSellers('qty365')" class="p-4 text-center text-sm font-semibold uppercase cursor-pointer hover:bg-opacity-80">365 GG <span id="sort-arrow-365g"></span></th>
+                                <th onclick="sortBestSellers('qtyRestockWeeks')" class="p-4 text-center text-sm font-semibold uppercase cursor-pointer hover:bg-opacity-80">RESTOCK SETTIMANE <span id="sort-arrow-restock"></span></th>
                             </tr>
                         </thead>
                         <tbody id="bestsellers-table-body" class="divide-y divide-gray-200"></tbody>
@@ -152,22 +141,6 @@
                     <p id="modal-stock" class="text-md text-brand-gray mt-1"></p>
                 </div>
             </div>
-            <div class="mt-6 border-t border-gray-200 pt-6">
-                <button id="gemini-generate-btn" class="gemini-button">✨ Genera Descrizione Prodotto</button>
-                <div id="gemini-result-container" class="mt-4 bg-gray-50 p-4 rounded-lg min-h-[60px] text-gray-700 text-sm"></div>
-            </div>
-        </div>
-    </div>
-
-    <div id="edit-modal" class="fixed inset-0 bg-black bg-opacity-60 hidden flex items-center justify-center p-4 z-50">
-        <div class="bg-white rounded-2xl shadow-xl w-full max-w-md p-6 relative">
-            <h2 class="text-2xl font-bold text-brand-orange mb-4">Modifica Dati</h2>
-            <p id="edit-modal-info" class="text-gray-600 mb-4 text-sm"></p>
-            <div class="mb-6"><label class="block text-sm font-medium text-gray-700 mb-2">Nuovo Valore</label><input type="text" id="edit-input" class="w-full p-4 border border-gray-300 rounded-lg text-lg focus:ring-2 focus:ring-brand-orange"></div>
-            <div class="flex justify-end gap-3">
-                <button onclick="closeEditModal()" class="px-4 py-2 text-gray-600 font-semibold hover:bg-gray-100 rounded-lg">Annulla</button>
-                <button onclick="saveEdit()" id="save-btn" class="px-6 py-2 bg-brand-orange text-white font-bold rounded-lg hover:bg-opacity-90 flex items-center gap-2"><span id="save-btn-text">Salva Modifiche</span><span id="save-loader" class="loader hidden" style="width:20px;height:20px;border-width:2px;"></span></button>
-            </div>
         </div>
     </div>
 
@@ -175,17 +148,23 @@
         // CONFIGURAZIONE
         const CSV_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQLf2HBC2g4q3L-hER7WPpYixWIIqJyV6MAkWm4ENZlQNrLxbroZRP3HBZ7Uzl510OVON8q590_YH_S/pub?gid=938359466&single=true&output=csv';
         const LOG_VENDITE_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQLf2HBC2g4q3L-hER7WPpYixWIIqJyV6MAkWm4ENZlQNrLxbroZRP3HBZ7Uzl510OVON8q590_YH_S/pub?gid=135483104&single=true&output=csv';
-        const APPS_SCRIPT_URL = 'INSERISCI_QUI_URL_APPS_SCRIPT'; 
-        const apiKey = ""; 
 
         let allProducts = [];
         let salesLog24h = new Map();
         let sortState = { column: 'qty24', direction: 'desc' };
-        let currentEditingSku = null, currentEditingField = null;
-        let isBestsellersRendered = false;
 
-        // Mapping CSV: Aggiornato T_RESTOCK (Colonna T = Indice 19)
-        const COLS = { A_ASIN: 0, B: 1, C_SKU: 2, E_CAT: 4, F_BRAND: 5, H_QTY: 7, I_SCAFFALE: 8, Q_7G: 16, R_30G: 17, S_365G: 18, T_RESTOCK: 19, AB_IMG: 28 };
+        // Mapping Colonne
+        const COLS = { 
+            A_ASIN: 0, 
+            C_SKU: 2, 
+            H_QTY: 7, 
+            I_SCAFFALE: 8, 
+            N_7G_FBA: 13, 
+            Q_7G_TEMU: 16, 
+            R_30G: 17, 
+            S_365G: 18, 
+            AB_IMG: 27 
+        };
 
         const el = id => document.getElementById(id);
         
@@ -195,13 +174,6 @@
             el('filter-category').addEventListener('change', renderTable);
             el('filter-brand').addEventListener('change', renderTable);
             el('filter-shelf').addEventListener('change', renderTable);
-
-            document.body.addEventListener('click', e => {
-                const btn = e.target.closest('.sku-button');
-                if (btn) openProductModal(btn.dataset.sku);
-                if (e.target === el('product-modal')) closeProductModal();
-                if (e.target === el('edit-modal')) closeEditModal();
-            });
         });
 
         async function fetchData() {
@@ -215,7 +187,7 @@
                 el('status-message').classList.add('hidden');
                 switchTab('inventory');
             } catch (err) {
-                el('status-message').innerHTML = `<span class="text-red-600">Errore caricamento. Ricarica la pagina.</span>`;
+                el('status-message').innerHTML = `<span class="text-red-600">Errore caricamento.</span>`;
             }
         }
 
@@ -230,25 +202,28 @@
                 const sku = cols[COLS.C_SKU];
                 if (!sku) return null;
 
-                const asin = cols[COLS.A_ASIN] || '';
-                // Calcolo Restock Settimane (Col T * 4.5)
-                let restockMesi = parseFloat(cols[COLS.T_RESTOCK]) || 0;
-                let restockSettimane = restockMesi * 4.5;
+                const qtyMag = parseFloat(cols[COLS.H_QTY]) || 0;
+                const fba7 = parseFloat(cols[COLS.N_7G_FBA]) || 0;
+                const temu7 = parseFloat(cols[COLS.Q_7G_TEMU]) || 0;
+                const total7 = fba7 + temu7;
+
+                // Nuova Formula: QTY MAG / (7G FBA + 7G TEMU)
+                let restockSettimane = total7 > 0 ? (qtyMag / total7) : 99; // 99 se non ci sono vendite per evitare infinity
 
                 return {
                     sku: sku,
-                    asin: asin,
+                    asin: cols[COLS.A_ASIN] || '',
                     immagine: cols[COLS.AB_IMG] || '',
                     categoria: cols[COLS.E_CAT] || '',
                     brand: cols[COLS.F_BRAND] || '',
-                    qty: cols[COLS.H_QTY] || '0',
+                    qty: qtyMag,
                     scaffale: cols[COLS.I_SCAFFALE] || '',
-                    qty24: salesLog24h.get(asin) || 0,
-                    qty7: parseInt(cols[COLS.Q_7G]) || 0,
+                    qty24: salesLog24h.get(cols[COLS.A_ASIN]) || 0,
+                    qty7: total7,
                     qty30: parseInt(cols[COLS.R_30G]) || 0,
                     qty365: parseInt(cols[COLS.S_365G]) || 0,
                     qtyRestockWeeks: restockSettimane,
-                    searchData: (asin + " " + cols[COLS.B] + " " + sku + " " + cols[COLS.E_CAT] + " " + cols[COLS.F_BRAND]).toLowerCase()
+                    searchData: (cols[COLS.A_ASIN] + " " + sku + " " + cols[COLS.E_CAT] + " " + cols[COLS.F_BRAND]).toLowerCase()
                 };
             }).filter(p => p !== null);
         }
@@ -265,222 +240,129 @@
                 if (!row.trim()) return;
                 const cols = row.split(regex).map(s => s.replace(/^"|"$/g, '').trim());
                 if (cols.length < 3) return;
-
-                const dateStr = cols[0]; 
-                const asin = cols[1];
-                const qty = parseInt(cols[2]) || 0;
-
-                let entryDate;
-                const parts = dateStr.split(/[\/\-\s:]/);
-                if (parts.length >= 3) {
-                    const p1 = parseInt(parts[0]), p2 = parseInt(parts[1]), p3 = parseInt(parts[2]);
-                    if (p3 > 1000) { // GG/MM/AAAA
-                        const h = parts[3] ? parseInt(parts[3]) : 0, m = parts[4] ? parseInt(parts[4]) : 0;
-                        entryDate = new Date(p3, p2 - 1, p1, h, m);
-                    } else if (p1 > 1000) { // AAAA-MM-GG
-                        entryDate = new Date(p1, p2 - 1, p3);
-                    }
-                }
-                if (!entryDate || isNaN(entryDate.getTime())) entryDate = new Date(dateStr);
-
-                if (!isNaN(entryDate.getTime())) {
-                    if (now - entryDate <= oneDayMs && now >= entryDate) {
-                        salesLog24h.set(asin, (salesLog24h.get(asin) || 0) + qty);
-                    }
+                const entryDate = new Date(cols[0]);
+                if (!isNaN(entryDate.getTime()) && (now - entryDate <= oneDayMs)) {
+                    salesLog24h.set(cols[1], (salesLog24h.get(cols[1]) || 0) + parseInt(cols[2] || 0));
                 }
             });
-        }
-
-        function populateFilters() {
-            const cats = new Set(), brands = new Set(), shelves = new Set();
-            allProducts.forEach(p => {
-                if(p.categoria) cats.add(p.categoria);
-                if(p.brand) brands.add(p.brand);
-                if(p.scaffale) shelves.add(p.scaffale);
-            });
-            const fill = (id, set) => {
-                const sel = el(id);
-                [...set].sort().forEach(v => { const o = document.createElement('option'); o.value = v; o.text = v; sel.add(o); });
-            };
-            fill('filter-category', cats); fill('filter-brand', brands); fill('filter-shelf', shelves);
         }
 
         function switchTab(view) {
             if (view === 'inventory') {
                 el('inventory-view').classList.remove('hidden'); el('inventory-container-wrapper').classList.remove('hidden');
                 el('bestsellers-header').classList.add('hidden'); el('bestsellers-container-wrapper').classList.add('hidden');
-                el('nav-inventory').className = "text-lg font-semibold text-brand-orange border-b-2 border-brand-orange pb-1";
-                el('nav-bestsellers').className = "text-lg font-semibold text-brand-gray hover:text-brand-orange";
+                el('nav-inventory').classList.add('text-brand-orange', 'border-brand-orange');
+                el('nav-bestsellers').classList.remove('text-brand-orange', 'border-brand-orange');
             } else {
                 el('inventory-view').classList.add('hidden'); el('inventory-container-wrapper').classList.add('hidden');
                 el('bestsellers-header').classList.remove('hidden'); el('bestsellers-container-wrapper').classList.remove('hidden');
-                el('nav-inventory').className = "text-lg font-semibold text-brand-gray hover:text-brand-orange";
-                el('nav-bestsellers').className = "text-lg font-semibold text-brand-orange border-b-2 border-brand-orange pb-1";
+                el('nav-bestsellers').classList.add('text-brand-orange', 'border-brand-orange');
+                el('nav-inventory').classList.remove('text-brand-orange', 'border-brand-orange');
                 renderBestSellers();
             }
         }
 
         function renderTable() {
-            const term = el('search-box').value.toLowerCase().trim();
-            const keys = term.split(' ').filter(k => k);
+            const term = el('search-box').value.toLowerCase();
             const cat = el('filter-category').value, br = el('filter-brand').value, sh = el('filter-shelf').value;
-
-            const filtered = allProducts.filter(p => {
-                if (cat && p.categoria !== cat) return false;
-                if (br && p.brand !== br) return false;
-                if (sh && p.scaffale !== sh) return false;
-                return keys.length === 0 || keys.every(k => p.searchData.includes(k));
-            });
+            const filtered = allProducts.filter(p => (!cat || p.categoria === cat) && (!br || p.brand === br) && (!sh || p.scaffale === sh) && (!term || p.searchData.includes(term)));
 
             const tb = el('results-table-body'), cards = el('results-cards-container');
             tb.innerHTML = ''; cards.innerHTML = '';
 
-            if (filtered.length === 0) {
-                el('results-container').classList.add('hidden'); cards.classList.add('hidden');
-                el('status-message').innerHTML = '<div class="p-8 text-center text-gray-500">Nessun prodotto trovato.</div>';
-                el('status-message').classList.remove('hidden'); return;
-            }
-
-            el('status-message').classList.add('hidden');
-            el('results-container').classList.remove('hidden'); cards.classList.remove('hidden');
-            
-            const isSingle = filtered.length === 1;
-            let rows = '', cardsHtml = '';
-            
             filtered.slice(0, 100).forEach(p => {
                 const img = p.immagine || `https://placehold.co/150x150/FD991F/white?text=${p.sku[0]}`;
-                rows += `
+                tb.innerHTML += `
                     <tr class="hover:bg-gray-50">
-                        <td class="p-3 text-center"><img src="${img}" class="w-[150px] h-[150px] object-contain rounded-md bg-white mx-auto shadow-sm" loading="lazy" onerror="this.src='https://placehold.co/150x150/FD991F/white?text=?'"></td>
-                        <td class="p-3 skugls"><button class="sku-button" data-sku="${p.sku}">${p.sku}</button></td>
+                        <td class="p-3 text-center"><img src="${img}" class="w-[150px] h-[150px] object-contain rounded-md bg-white mx-auto shadow-sm"></td>
+                        <td class="p-3 skugls"><button class="sku-button" onclick="openProductModal('${p.sku}')">${p.sku}</button></td>
                         <td class="p-3 text-sm text-gray-700">${p.categoria}</td>
                         <td class="p-3 text-2xl font-bold text-gray-900">${p.brand}</td>
-                        <td class="p-3 text-4xl font-bold text-center editable-cell" onclick="openEditModal('${p.sku}', 'qty', '${p.qty}')">${p.qty}</td>
-                        <td class="p-3 text-5xl font-bold text-brand-orange leading-tight break-words max-w-[300px] editable-cell" onclick="openEditModal('${p.sku}', 'scaffale', '${p.scaffale}')">${p.scaffale}</td>
+                        <td class="p-3 text-4xl font-bold text-center text-gray-600">${p.qty}</td>
+                        <td class="p-3 text-5xl font-bold text-brand-orange max-w-[300px] break-words">${p.scaffale}</td>
                     </tr>`;
-
-                if (isSingle) {
-                    cardsHtml += `
-                        <div class="p-6 flex flex-col items-center text-center space-y-6">
-                            <div class="w-full bg-white rounded-xl p-4 border border-gray-100"><img src="${img}" class="w-full max-w-[300px] mx-auto object-contain"></div>
-                            <div class="w-full"><button class="sku-button w-full text-center" data-sku="${p.sku}"><h2 class="text-3xl font-bold text-brand-orange break-all">${p.sku}</h2></button>
-                            <p class="text-xl font-medium text-gray-900 mt-2">${p.brand}</p>
-                            <div class="mt-6 grid grid-cols-2 gap-4 bg-gray-50 rounded-xl p-4 border border-gray-200">
-                                <div class="flex flex-col editable-cell p-2" onclick="openEditModal('${p.sku}', 'qty', '${p.qty}')"><span class="text-sm text-gray-500 font-semibold uppercase">Quantità</span><span class="text-4xl font-bold text-gray-900">${p.qty}</span></div>
-                                <div class="flex flex-col editable-cell p-2" onclick="openEditModal('${p.sku}', 'scaffale', '${p.scaffale}')"><span class="text-sm text-gray-500 font-semibold uppercase">Scaffale</span><span class="text-5xl font-bold text-brand-orange break-words leading-tight">${p.scaffale}</span></div>
-                            </div></div>
-                        </div>`;
-                } else {
-                    cardsHtml += `
-                        <div class="flex p-4 border-b border-gray-200 last:border-b-0">
-                            <div class="flex-shrink-0 w-[120px] h-[120px] bg-white rounded-md border border-gray-100 p-1 flex items-center justify-center"><img src="${img}" class="w-full h-full object-contain" loading="lazy"></div>
-                            <div class="ml-4 flex-grow min-w-0">
-                                <button class="sku-button" data-sku="${p.sku}"><h3 class="text-lg font-bold text-brand-orange truncate">${p.sku}</h3></button>
-                                <p class="text-sm font-medium text-gray-900 truncate">${p.brand}</p>
-                                <p class="text-2xl font-bold text-gray-800 mt-1 editable-cell w-max" onclick="openEditModal('${p.sku}', 'qty', '${p.qty}')">QTY: ${p.qty}</p>
-                                <p class="text-3xl font-bold text-gray-700 mt-1 editable-cell w-max" onclick="openEditModal('${p.sku}', 'scaffale', '${p.scaffale}')">Scaff: ${p.scaffale}</p>
+                
+                cards.innerHTML += `
+                    <div class="p-4 border-b border-gray-200">
+                        <div class="flex items-center gap-4">
+                            <img src="${img}" class="w-[100px] h-[100px] object-contain bg-white rounded shadow-sm">
+                            <div class="flex-grow">
+                                <button class="sku-button text-lg" onclick="openProductModal('${p.sku}')">${p.sku}</button>
+                                <p class="text-sm font-medium">${p.brand}</p>
+                                <p class="text-2xl font-bold">QTY: ${p.qty}</p>
+                                <p class="text-3xl font-black text-brand-orange">Scaff: ${p.scaffale}</p>
                             </div>
-                        </div>`;
-                }
+                        </div>
+                    </div>`;
             });
-            tb.innerHTML = rows; cards.innerHTML = cardsHtml;
         }
 
         function sortBestSellers(col) {
-            if (sortState.column === col) sortState.direction = sortState.direction === 'asc' ? 'desc' : 'asc';
-            else { sortState.column = col; sortState.direction = 'desc'; }
+            sortState.direction = (sortState.column === col && sortState.direction === 'desc') ? 'asc' : 'desc';
+            sortState.column = col;
             renderBestSellers();
         }
 
         function renderBestSellers() {
-            const data = allProducts.filter(p => p.qty24 > 0 || p.qty7 > 0 || p.qty30 > 0 || p.qty365 > 0);
+            const data = allProducts.filter(p => p.qty7 > 0 || p.qty24 > 0);
             data.sort((a, b) => sortState.direction === 'asc' ? a[sortState.column] - b[sortState.column] : b[sortState.column] - a[sortState.column]);
-            
-            ['24h', '7g', '30g', '365g', 'restock'].forEach(k => { const e = el('sort-arrow-'+k); if(e) e.textContent = ''; });
-            const arr = sortState.direction === 'asc' ? ' ↑' : ' ↓';
-            const map = { qty24: '24h', qty7: '7g', qty30: '30g', qty365: '365g', qtyRestockWeeks: 'restock' };
-            if(el('sort-arrow-'+map[sortState.column])) el('sort-arrow-'+map[sortState.column]).textContent = arr;
 
             const tb = el('bestsellers-table-body'), cards = el('bestsellers-cards-container');
-            if (data.length === 0) { tb.innerHTML = '<tr><td colspan="7" class="p-8 text-center">Nessun dato.</td></tr>'; return; }
+            tb.innerHTML = ''; cards.innerHTML = '';
 
-            let rows = '', cardsHtml = '';
             data.slice(0, 100).forEach(p => {
                 const img = p.immagine || `https://placehold.co/150x150/FD991F/white?text=${p.sku[0]}`;
-                const restockVal = p.qtyRestockWeeks.toFixed(1);
+                const val = p.qtyRestockWeeks.toFixed(2);
                 const isAlert = p.qtyRestockWeeks < 4;
-                const alertClass = isAlert ? 'low-stock-alert' : '';
+                const rowClass = isAlert ? 'low-stock-alert' : '';
 
-                rows += `
-                    <tr class="hover:bg-opacity-80 transition-colors ${alertClass}">
-                        <td class="p-3 text-center"><img src="${img}" class="w-[150px] h-[150px] object-contain rounded-md bg-white mx-auto shadow-sm"></td>
-                        <td class="p-3 skugls"><button class="sku-button text-lg" data-sku="${p.sku}">${p.sku}</button></td>
+                tb.innerHTML += `
+                    <tr class="${rowClass} hover:bg-opacity-80">
+                        <td class="p-3 text-center"><img src="${img}" class="w-[150px] h-[150px] object-contain rounded-md bg-white mx-auto"></td>
+                        <td class="p-3 skugls"><button class="sku-button" onclick="openProductModal('${p.sku}')">${p.sku}</button></td>
                         <td class="p-3 text-4xl font-bold text-center text-red-600">${p.qty24}</td>
-                        <td class="p-3 text-3xl font-bold text-center">${p.qty7}</td>
-                        <td class="p-3 text-3xl font-bold text-center">${p.qty30}</td>
-                        <td class="p-3 text-3xl font-bold text-center">${p.qty365}</td>
-                        <td class="p-3 text-4xl font-black text-center ${isAlert ? 'text-red-700' : 'text-green-700'}">${restockVal}</td>
+                        <td class="p-3 text-4xl font-bold text-center text-gray-800">${p.qty7}</td>
+                        <td class="p-3 text-4xl font-bold text-center text-gray-800">${p.qty30}</td>
+                        <td class="p-3 text-4xl font-bold text-center text-gray-800">${p.qty365}</td>
+                        <td class="p-3 text-5xl font-black text-center ${isAlert ? 'text-red-700' : 'text-green-700'}">${val}</td>
                     </tr>`;
                 
-                cardsHtml += `
-                    <div class="flex flex-col p-4 border-b border-gray-200 ${alertClass}">
-                        <div class="flex items-center mb-4">
-                            <div class="flex-shrink-0 w-[100px] h-[100px] bg-white rounded-md border p-1 flex items-center justify-center"><img src="${img}" class="w-full h-full object-contain"></div>
-                            <div class="ml-4 flex-grow min-w-0"><button class="sku-button" data-sku="${p.sku}"><h3 class="text-xl font-bold text-brand-orange truncate">${p.sku}</h3></button><p class="text-sm font-medium text-gray-900 truncate">${p.brand}</p></div>
+                cards.innerHTML += `
+                    <div class="p-4 border-b border-gray-200 ${rowClass}">
+                        <div class="flex items-center gap-4 mb-3">
+                            <img src="${img}" class="w-[80px] h-[80px] object-contain bg-white rounded">
+                            <div>
+                                <button class="sku-button" onclick="openProductModal('${p.sku}')">${p.sku}</button>
+                                <p class="text-xs">${p.brand}</p>
+                            </div>
                         </div>
-                        <div class="grid grid-cols-5 gap-1 text-center bg-white/50 p-3 rounded-lg shadow-inner">
-                            <div><div class="text-[10px] text-gray-500 font-bold uppercase">24H</div><div class="text-2xl font-bold text-red-600">${p.qty24}</div></div>
-                            <div><div class="text-[10px] text-gray-500 font-bold uppercase">7G</div><div class="text-2xl font-bold">${p.qty7}</div></div>
-                            <div><div class="text-[10px] text-gray-500 font-bold uppercase">30G</div><div class="text-2xl font-bold">${p.qty30}</div></div>
-                            <div><div class="text-[10px] text-gray-500 font-bold uppercase">365G</div><div class="text-2xl font-bold">${p.qty365}</div></div>
-                            <div><div class="text-[10px] text-gray-500 font-bold uppercase text-brand-orange">RESTOCK</div><div class="text-2xl font-black ${isAlert ? 'text-red-700' : 'text-green-700'}">${restockVal}</div></div>
+                        <div class="grid grid-cols-5 gap-1 text-center">
+                            <div><p class="text-[10px] text-gray-500">24H</p><p class="text-xl font-bold text-red-600">${p.qty24}</p></div>
+                            <div><p class="text-[10px] text-gray-500">7G</p><p class="text-xl font-bold">${p.qty7}</p></div>
+                            <div><p class="text-[10px] text-gray-500">30G</p><p class="text-xl font-bold">${p.qty30}</p></div>
+                            <div><p class="text-[10px] text-gray-500">365G</p><p class="text-xl font-bold">${p.qty365}</p></div>
+                            <div><p class="text-[10px] text-brand-orange font-bold">WEEKS</p><p class="text-2xl font-black ${isAlert ? 'text-red-700' : 'text-green-700'}">${val}</p></div>
                         </div>
                     </div>`;
             });
-            tb.innerHTML = rows; cards.innerHTML = cardsHtml;
+        }
+
+        function populateFilters() {
+            const cats = new Set(), brs = new Set(), shs = new Set();
+            allProducts.forEach(p => { if(p.categoria) cats.add(p.categoria); if(p.brand) brs.add(p.brand); if(p.scaffale) shs.add(p.scaffale); });
+            const fill = (id, set) => { const s = el(id); [...set].sort().forEach(v => { const o = document.createElement('option'); o.value = v; o.text = v; s.add(o); }); };
+            fill('filter-category', cats); fill('filter-brand', brs); fill('filter-shelf', shs);
         }
 
         function openProductModal(sku) {
             const p = allProducts.find(x => x.sku === sku); if(!p) return;
-            el('modal-img').src = p.immagine || `https://placehold.co/150x150/FD991F/white?text=${p.sku[0]}`;
+            el('modal-img').src = p.immagine || `https://placehold.co/150x150/FD991F/white?text=?`;
             el('modal-sku').textContent = p.sku;
             el('modal-details').textContent = `Brand: ${p.brand} | Cat: ${p.categoria}`;
-            el('modal-stock').textContent = `Mag: ${p.qty} | Scaff: ${p.scaffale}`;
-            el('gemini-result-container').innerHTML = ''; el('gemini-generate-btn').disabled = false;
-            el('gemini-generate-btn').onclick = () => callGemini(p);
+            el('modal-stock').textContent = `Giacenza: ${p.qty} | Scaffale: ${p.scaffale}`;
             el('product-modal').classList.remove('hidden');
         }
         function closeProductModal() { el('product-modal').classList.add('hidden'); }
-
-        function openEditModal(sku, field, val) {
-            currentEditingSku = sku; currentEditingField = field;
-            el('edit-modal-info').textContent = `Modifica ${field === 'qty' ? 'Quantità' : 'Scaffale'} per ${sku}`;
-            el('edit-input').value = val === 'undefined' ? '' : val;
-            el('edit-modal').classList.remove('hidden'); el('edit-input').focus();
-        }
-        function closeEditModal() { el('edit-modal').classList.add('hidden'); }
-
-        async function saveEdit() {
-            if (APPS_SCRIPT_URL.includes('INSERISCI')) { alert("Errore: Configura lo script!"); return; }
-            el('save-btn').disabled = true; el('save-loader').classList.remove('hidden');
-            try {
-                await fetch(APPS_SCRIPT_URL, { method: 'POST', mode: 'no-cors', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({sku: currentEditingSku, field: currentEditingField, value: el('edit-input').value}) });
-                const p = allProducts.find(x => x.sku === currentEditingSku);
-                if(p) p[currentEditingField] = el('edit-input').value;
-                renderTable(); closeEditModal();
-            } catch { alert("Errore salvataggio"); }
-            finally { el('save-btn').disabled = false; el('save-loader').classList.add('hidden'); }
-        }
-
-        async function callGemini(p) {
-            el('gemini-generate-btn').disabled = true; el('gemini-result-container').innerHTML = '<span class="loader" style="width:24px;height:24px;border-width:3px"></span>';
-            const q = `Descrivi prodotto: Brand: ${p.brand} Cat: ${p.categoria} SKU: ${p.sku}`;
-            try {
-                const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ contents: [{ parts: [{ text: q }] }] }) });
-                const json = await res.json();
-                el('gemini-result-container').innerHTML = json.candidates?.[0]?.content?.parts?.[0]?.text || "Nessun testo.";
-            } catch { el('gemini-result-container').innerHTML = "Errore API."; }
-        }
     </script>
 </body>
 </html>
