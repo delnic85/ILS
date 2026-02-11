@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Ricerca Magazzino - I LOVE SHOPPING</title>
+    <title>Magazzino I LOVE SHOPPING</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;900&display=swap" rel="stylesheet">
     <style>
@@ -11,10 +11,9 @@
         body { font-family: 'Inter', sans-serif; background-color: #f3f4f6; }
         .loader { width: 40px; height: 40px; border: 4px solid #f3f3f3; border-top: 4px solid var(--brand-orange); border-radius: 50%; animation: spin 1s linear infinite; display: inline-block; }
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
-        .skugls { width: 150px; overflow-wrap: break-word; }
         .low-stock-alert { background-color: #F5DEB3 !important; }
-        thead th { position: sticky; top: 0; z-index: 20; background: var(--brand-gray); color: white; padding: 1rem; }
-        .sku-link { color: var(--brand-orange); font-weight: 700; text-decoration: none; cursor: pointer; }
+        thead th { position: sticky; top: 0; z-index: 30; background: var(--brand-gray); color: white; padding: 12px; }
+        .sku-link { color: var(--brand-orange); font-weight: 700; cursor: pointer; }
         .sku-link:hover { text-decoration: underline; }
     </style>
 </head>
@@ -27,110 +26,97 @@
                 Scannerizza etichetta
             </a>
             <div class="flex gap-4">
-                <button id="btn-inv" onclick="switchTab('inventory')" class="px-4 py-2 font-bold border-b-4 border-brand-orange text-brand-orange">Ricerca Magazzino</button>
-                <button id="btn-bs" onclick="switchTab('bestsellers')" class="px-4 py-2 font-bold border-b-4 border-transparent">BEST SELLERS</button>
+                <button id="nav-inv" onclick="switchTab('inventory')" class="px-4 py-2 font-bold border-b-4 border-brand-orange text-brand-orange">Ricerca Magazzino</button>
+                <button id="nav-bs" onclick="switchTab('bestsellers')" class="px-4 py-2 font-bold border-b-4 border-transparent">BEST SELLERS</button>
             </div>
         </nav>
 
         <div id="filter-section" class="bg-white rounded-2xl shadow-md p-6 mb-6">
-            <input type="text" id="search-box" placeholder="Cerca SKU, nome, brand..." class="w-full p-4 border rounded-xl mb-4 focus:ring-2 focus:ring-brand-orange outline-none">
-            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <select id="f-cat" class="p-3 border rounded-lg bg-gray-50"><option value="">Tutte le categorie</option></select>
-                <select id="f-brand" class="p-3 border rounded-lg bg-gray-50"><option value="">Tutti i brand</option></select>
-                <select id="f-shelf" class="p-3 border rounded-lg bg-gray-50"><option value="">Tutti gli scaffali</option></select>
+            <input type="text" id="search-box" oninput="debounceRender()" placeholder="Cerca SKU, brand, scaffale..." class="w-full p-4 border rounded-xl mb-4 focus:ring-2 focus:ring-brand-orange outline-none text-lg">
+            <div id="select-filters" class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <select id="f-cat" onchange="render()" class="p-3 border rounded-lg bg-gray-50"><option value="">Tutte le categorie</option></select>
+                <select id="f-brand" onchange="render()" class="p-3 border rounded-lg bg-gray-50"><option value="">Tutti i brand</option></select>
+                <select id="f-shelf" onchange="render()" class="p-3 border rounded-lg bg-gray-50"><option value="">Tutti gli scaffali</option></select>
             </div>
         </div>
 
-        <div id="loader-area" class="text-center p-10 hidden">
+        <div id="loader-area" class="text-center p-10">
             <div class="loader"></div>
-            <p class="mt-4 font-semibold" id="loader-text">Elaborazione dati in corso...</p>
+            <p class="mt-4 font-semibold text-lg" id="loader-text">Sincronizzazione dati...</p>
         </div>
 
-        <div class="bg-white rounded-2xl shadow-xl overflow-hidden relative min-h-[400px]">
-            <div id="view-inventory" class="overflow-x-auto">
-                <table class="w-full text-left border-collapse">
-                    <thead>
-                        <tr><th>Immagine</th><th>SKU GLS</th><th>Categoria</th><th>Brand</th><th class="text-center">QTY</th><th>Scaffale</th></tr>
-                    </thead>
-                    <tbody id="tbody-inv" class="divide-y"></tbody>
+        <div id="main-content" class="bg-white rounded-2xl shadow-xl overflow-hidden hidden">
+            <div class="overflow-x-auto">
+                <table class="w-full text-left border-collapse min-w-[800px]">
+                    <thead id="table-head"></thead>
+                    <tbody id="table-body" class="divide-y"></tbody>
                 </table>
-                <div id="cards-inv" class="md:hidden divide-y"></div>
             </div>
-
-            <div id="view-bs" class="hidden overflow-x-auto">
-                <table class="w-full text-left border-collapse">
-                    <thead>
-                        <tr>
-                            <th>Immagine</th><th>SKU</th>
-                            <th onclick="resort('qty24')" class="cursor-pointer">24H ↕</th>
-                            <th onclick="resort('qty7')" class="cursor-pointer">7G ↕</th>
-                            <th onclick="resort('qty30')" class="cursor-pointer">30G ↕</th>
-                            <th onclick="resort('qty365')" class="cursor-pointer">365G ↕</th>
-                            <th onclick="resort('qtyRestock')" class="cursor-pointer text-brand-orange">WEEKS ↕</th>
-                        </tr>
-                    </thead>
-                    <tbody id="tbody-bs" class="divide-y"></tbody>
-                </table>
-                <div id="cards-bs" class="md:hidden divide-y"></div>
-            </div>
+            <div id="mobile-cards" class="md:hidden divide-y bg-white"></div>
         </div>
     </div>
 
-    <div id="modal" class="fixed inset-0 bg-black/60 hidden flex items-center justify-center p-4 z-50">
-        <div class="bg-white rounded-3xl max-w-lg w-full p-8 relative">
-            <button onclick="closeModal()" class="absolute top-4 right-6 text-4xl">&times;</button>
-            <div class="flex flex-col md:flex-row gap-6">
-                <img id="m-img" src="" class="w-40 h-40 object-contain rounded-xl border">
-                <div>
-                    <h2 id="m-sku" class="text-2xl font-black text-brand-orange mb-2"></h2>
-                    <p id="m-brand" class="font-bold text-gray-500"></p>
-                    <p id="m-qty" class="text-3xl font-black mt-4"></p>
+    <div id="modal" class="fixed inset-0 bg-black/60 hidden flex items-center justify-center p-4 z-50" onclick="closeModal()">
+        <div class="bg-white rounded-3xl max-w-lg w-full p-8 relative" onclick="event.stopPropagation()">
+            <button onclick="closeModal()" class="absolute top-4 right-6 text-4xl text-gray-400">&times;</button>
+            <div class="flex flex-col items-center text-center gap-6">
+                <img id="m-img" src="" class="w-64 h-64 object-contain rounded-xl">
+                <h2 id="m-sku" class="text-3xl font-black text-brand-orange"></h2>
+                <div class="w-full grid grid-cols-2 gap-4 bg-gray-50 p-4 rounded-2xl border">
+                    <div><p class="text-xs uppercase text-gray-400">Giacenza</p><p id="m-qty" class="text-2xl font-bold"></p></div>
+                    <div><p class="text-xs uppercase text-gray-400">Scaffale</p><p id="m-shelf" class="text-2xl font-bold text-brand-orange"></p></div>
                 </div>
             </div>
         </div>
     </div>
 
     <script>
-        const CONFIG = {
+        const URLS = {
             INV: 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQLf2HBC2g4q3L-hER7WPpYixWIIqJyV6MAkWm4ENZlQNrLxbroZRP3HBZ7Uzl510OVON8q590_YH_S/pub?gid=938359466&single=true&output=csv',
-            LOG: 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQLf2HBC2g4q3L-hER7WPpYixWIIqJyV6MAkWm4ENZlQNrLxbroZRP3HBZ7Uzl510OVON8q590_YH_S/pub?gid=135483104&single=true&output=csv',
-            COLS: { ASIN:0, SKU:2, QTY:7, SHELF:8, FBA7:13, TEMU7:16, V30:17, V365:18, IMG:28 }
+            LOG: 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQLf2HBC2g4q3L-hER7WPpYixWIIqJyV6MAkWm4ENZlQNrLxbroZRP3HBZ7Uzl510OVON8q590_YH_S/pub?gid=135483104&single=true&output=csv'
         };
 
-        let dataStore = [];
-        let activeView = 'inventory';
-        let sortKey = 'qty24';
-        let sortDir = -1;
+        // AGGIORNATO: IMG ora a 28
+        const COL = { ASIN:0, SKU:2, QTY:7, SHELF:8, FBA7:13, TEMU7:16, V30:17, V365:18, IMG:28, F_BRAND: 5, E_CAT: 4 };
+
+        let db = [];
+        let currentTab = 'inventory';
+        let sortCol = 'qty24';
+        let sortAsc = false;
+        let searchTimeout;
 
         async function init() {
-            showLoading(true, "Scaricamento database...");
             try {
-                const [invRes, logRes] = await Promise.all([fetch(CONFIG.INV), fetch(CONFIG.LOG)]);
-                const [invText, logText] = await Promise.all([invRes.text(), logRes.text()]);
-                
-                showLoading(true, "Analisi vendite 24h...");
+                updateLoader("Caricamento Magazzino...");
+                const [invRes, logRes] = await Promise.all([fetch(URLS.INV), fetch(URLS.LOG)]);
+                const invText = await invRes.text();
+                const logText = await logRes.text();
+
+                updateLoader("Calcolo vendite 24h...");
                 const sales24 = parseLog(logText);
-                
-                showLoading(true, "Costruzione inventario...");
-                dataStore = parseInventory(invText, sales24);
-                
-                populateSelects();
+
+                updateLoader("Ottimizzazione database...");
+                db = parseInventory(invText, sales24);
+
+                populateFilters();
+                document.getElementById('loader-area').remove();
+                document.getElementById('main-content').classList.remove('hidden');
                 render();
-            } catch (e) {
-                alert("Errore caricamento dati. Verifica connessione.");
+            } catch (err) {
+                document.getElementById('loader-text').innerHTML = `<span class="text-red-600">Errore sincronizzazione. Ricarica la pagina.</span>`;
             }
-            showLoading(false);
         }
 
-        function parseLog(text) {
+        function parseLog(csv) {
+            const lines = csv.split('\n').slice(1);
             const map = new Map();
             const now = new Date();
-            const lines = text.split('\n').slice(1);
-            lines.forEach(l => {
-                const c = l.split(/,(?=(?:(?:[^"]*"){2})*[^"]*$)/);
+            lines.forEach(line => {
+                const c = line.split(',');
                 if(c.length < 3) return;
-                const d = parseDate(c[0]);
-                if(d && (now - d < 86400000)) {
+                const p = c[0].split(/[\/ :]/);
+                const d = new Date(p[2], p[1]-1, p[0], p[3]||0, p[4]||0);
+                if(now - d < 86400000) {
                     const asin = c[1].trim();
                     map.set(asin, (map.get(asin) || 0) + parseInt(c[2] || 0));
                 }
@@ -138,81 +124,72 @@
             return map;
         }
 
-        function parseDate(s) {
-            const p = s.split(/[\/ :]/);
-            if(p.length < 3) return null;
-            return new Date(p[2], p[1]-1, p[0], p[3]||0, p[4]||0);
-        }
+        function parseInventory(csv, s24) {
+            const lines = csv.split('\n').slice(1);
+            return lines.map(line => {
+                const c = line.split(/,(?=(?:(?:[^"]*"){2})*[^"]*$)/).map(x => x.replace(/"/g,'').trim());
+                if(!c[COL.SKU]) return null;
 
-        function parseInventory(text, s24) {
-            return text.split('\n').slice(1).map(l => {
-                const c = l.split(/,(?=(?:(?:[^"]*"){2})*[^"]*$)/).map(x => x.replace(/"/g,'').trim());
-                if(!c[CONFIG.COLS.SKU]) return null;
-                const q7 = (parseFloat(c[CONFIG.COLS.FBA7]) || 0) + (parseFloat(c[CONFIG.COLS.TEMU7]) || 0);
-                const qm = parseFloat(c[CONFIG.COLS.QTY]) || 0;
+                const qtyMag = parseFloat(c[COL.QTY]) || 0;
+                const v7 = (parseFloat(c[COL.FBA7]) || 0) + (parseFloat(c[COL.TEMU7]) || 0);
+                const restock = v7 > 0 ? (qtyMag / v7) : 99;
+
                 return {
-                    sku: c[CONFIG.COLS.SKU],
-                    asin: c[CONFIG.COLS.ASIN],
-                    brand: c[CONFIG.COLS.F_BRAND] || '',
-                    cat: c[CONFIG.COLS.E_CAT] || '',
-                    img: c[CONFIG.COLS.AB_IMG],
-                    qty: qm,
-                    shelf: c[CONFIG.COLS.I_SCAFFALE],
-                    qty24: s24.get(c[CONFIG.COLS.ASIN]) || 0,
-                    qty7: q7,
-                    qty30: parseInt(c[CONFIG.COLS.V30]) || 0,
-                    qty365: parseInt(c[CONFIG.COLS.V365]) || 0,
-                    qtyRestock: q7 > 0 ? (qm / q7) : 99,
-                    search: (c[CONFIG.COLS.SKU] + c[CONFIG.COLS.F_BRAND] + c[CONFIG.COLS.I_SCAFFALE]).toLowerCase()
+                    sku: c[COL.SKU],
+                    asin: c[COL.ASIN],
+                    brand: c[COL.F_BRAND] || '',
+                    cat: c[COL.E_CAT] || '',
+                    img: c[COL.IMG] || '',
+                    qty: qtyMag,
+                    shelf: c[COL.SHELF] || '',
+                    qty24: s24.get(c[COL.ASIN]) || 0,
+                    qty7: v7,
+                    qty30: parseFloat(c[COL.V30]) || 0,
+                    qty365: parseFloat(c[COL.V365]) || 0,
+                    restock: restock,
+                    search: (c[COL.SKU] + c[COL.F_BRAND] + c[COL.SHELF]).toLowerCase()
                 };
-            }).filter(x => x);
+            }).filter(Boolean);
         }
 
-        // MOTORE DI RENDERING ASINCRONO (CHUNKING)
         async function render() {
             const query = document.getElementById('search-box').value.toLowerCase();
-            const cat = document.getElementById('f-cat').value;
-            const brand = document.getElementById('f-brand').value;
-            const shelf = document.getElementById('f-shelf').value;
+            const fCat = document.getElementById('f-cat').value;
+            const fBrand = document.getElementById('f-brand').value;
+            const fShelf = document.getElementById('f-shelf').value;
 
-            let filtered = dataStore.filter(p => 
-                (!query || p.search.includes(query)) &&
-                (!cat || p.cat === cat) &&
-                (!brand || p.brand === brand) &&
-                (!shelf || p.shelf === shelf)
+            let filtered = db.filter(p => 
+                p.search.includes(query) &&
+                (!fCat || p.cat === fCat) &&
+                (!fBrand || p.brand === fBrand) &&
+                (!fShelf || p.shelf === fShelf)
             );
 
-            if(activeView === 'bestsellers') {
+            if(currentTab === 'bestsellers') {
                 filtered = filtered.filter(p => p.qty7 > 0 || p.qty24 > 0);
-                filtered.sort((a,b) => (a[sortKey] - b[sortKey]) * sortDir);
+                filtered.sort((a,b) => sortAsc ? a[sortCol] - b[sortCol] : b[sortCol] - a[sortCol]);
+                renderBSHeader();
+            } else {
+                renderInvHeader();
             }
 
-            const targetTable = activeView === 'inventory' ? 'tbody-inv' : 'tbody-bs';
-            const targetCards = activeView === 'inventory' ? 'cards-inv' : 'cards-bs';
-            
-            document.getElementById(targetTable).innerHTML = '';
-            document.getElementById(targetCards).innerHTML = '';
+            const body = document.getElementById('table-body');
+            const cards = document.getElementById('mobile-cards');
+            body.innerHTML = ''; cards.innerHTML = '';
 
-            // Rendering a blocchi di 40 per non bloccare la UI
-            const chunkSize = 40;
-            for (let i = 0; i < filtered.length; i += chunkSize) {
-                const chunk = filtered.slice(i, i + chunkSize);
-                const html = chunk.map(p => activeView === 'inventory' ? rowInv(p) : rowBs(p)).join('');
-                const cards = chunk.map(p => activeView === 'inventory' ? cardInv(p) : cardBs(p)).join('');
-                
-                document.getElementById(targetTable).insertAdjacentHTML('beforeend', html);
-                document.getElementById(targetCards).insertAdjacentHTML('beforeend', cards);
-                
-                if (i + chunkSize < filtered.length) {
-                    await new Promise(r => setTimeout(r, 1)); // Yield al browser
-                }
+            const CHUNK = 50;
+            for(let i=0; i < filtered.length; i += CHUNK) {
+                const slice = filtered.slice(i, i + CHUNK);
+                const html = slice.map(p => currentTab === 'inventory' ? drawInvRow(p) : drawBSRow(p)).join('');
+                body.insertAdjacentHTML('beforeend', html);
+                if(i + CHUNK < filtered.length) await new Promise(r => setTimeout(r, 1));
             }
         }
 
-        function rowInv(p) {
-            return `<tr class="hover:bg-gray-50">
-                <td class="p-2"><img src="${p.img}" class="w-24 h-24 object-contain bg-white rounded border"></td>
-                <td class="p-4 skugls"><span class="sku-link" onclick="openModal('${p.sku}')">${p.sku}</span></td>
+        function drawInvRow(p) {
+            return `<tr class="hover:bg-gray-50 border-b">
+                <td class="p-2"><img src="${p.img}" class="w-24 h-24 object-contain bg-white rounded border" loading="lazy"></td>
+                <td class="p-4"><span class="sku-link" onclick="openModal('${p.sku}')">${p.sku}</span></td>
                 <td class="p-4 text-xs">${p.cat}</td>
                 <td class="p-4 font-bold text-xl">${p.brand}</td>
                 <td class="p-4 text-4xl font-black text-center text-gray-500">${p.qty}</td>
@@ -220,91 +197,75 @@
             </tr>`;
         }
 
-        function rowBs(p) {
-            const isLow = p.qtyRestock < 4;
-            const val = p.qtyRestock.toFixed(2);
-            return `<tr class="${isLow ? 'low-stock-alert' : ''} hover:bg-black/5">
+        function drawBSRow(p) {
+            const isAlert = p.restock < 4;
+            return `<tr class="${isAlert ? 'low-stock-alert' : ''} hover:bg-black/5 border-b">
                 <td class="p-2"><img src="${p.img}" class="w-24 h-24 object-contain bg-white rounded border"></td>
-                <td class="p-4 skugls font-bold"><span class="sku-link" onclick="openModal('${p.sku}')">${p.sku}</span></td>
+                <td class="p-4 font-bold"><span class="sku-link" onclick="openModal('${p.sku}')">${p.sku}</span></td>
                 <td class="p-4 text-4xl font-black text-red-600 text-center">${p.qty24}</td>
-                <td class="p-4 text-4xl font-black text-center">${p.qty7}</td>
+                <td class="p-4 text-4xl font-black text-center text-gray-700">${p.qty7}</td>
                 <td class="p-4 text-4xl font-bold text-center text-gray-400">${p.qty30}</td>
                 <td class="p-4 text-4xl font-bold text-center text-gray-400">${p.qty365}</td>
-                <td class="p-4 text-5xl font-black text-center ${isLow ? 'text-red-700' : 'text-green-700'}">${val}</td>
+                <td class="p-4 text-5xl font-black text-center ${isAlert ? 'text-red-700' : 'text-green-700'}">${p.restock.toFixed(2)}</td>
             </tr>`;
         }
 
-        // Funzioni UI Mobile (Card) semplificate
-        function cardInv(p) {
-            return `<div class="p-4 flex gap-4">
-                <img src="${p.img}" class="w-24 h-24 object-contain bg-white border rounded">
-                <div class="flex-grow">
-                    <div class="sku-link" onclick="openModal('${p.sku}')">${p.sku}</div>
-                    <div class="font-bold">${p.brand}</div>
-                    <div class="text-3xl font-black text-brand-orange">${p.shelf} <span class="text-sm text-gray-400 font-normal">QTY:${p.qty}</span></div>
-                </div>
-            </div>`;
+        function renderInvHeader() {
+            document.getElementById('table-head').innerHTML = `<tr>
+                <th>IMMAGINE</th><th>SKU GLS</th><th>CATEGORIA</th><th>BRAND</th><th class="text-center">QTY</th><th>SCAFFALE</th>
+            </tr>`;
         }
 
-        function cardBs(p) {
-            const isLow = p.qtyRestock < 4;
-            return `<div class="p-4 ${isLow ? 'low-stock-alert' : ''}">
-                <div class="flex gap-4 mb-2">
-                    <img src="${p.img}" class="w-16 h-16 object-contain bg-white border">
-                    <div class="sku-link" onclick="openModal('${p.sku}')">${p.sku}</div>
-                </div>
-                <div class="grid grid-cols-5 text-center font-black">
-                    <div class="text-red-600">24h<br>${p.qty24}</div>
-                    <div>7g<br>${p.qty7}</div>
-                    <div class="text-gray-400">30g<br>${p.qty30}</div>
-                    <div class="text-gray-400">365g<br>${p.qty365}</div>
-                    <div class="${isLow?'text-red-700':'text-green-700'}">Wk<br>${p.qtyRestock.toFixed(1)}</div>
-                </div>
-            </div>`;
+        function renderBSHeader() {
+            const arrow = sortAsc ? '↑' : '↓';
+            const s = c => sortCol === c ? `<span class="text-white ml-1">${arrow}</span>` : '';
+            document.getElementById('table-head').innerHTML = `<tr>
+                <th>IMMAGINE</th><th>SKU</th>
+                <th class="text-center cursor-pointer" onclick="handleSort('qty24')">24H${s('qty24')}</th>
+                <th class="text-center cursor-pointer" onclick="handleSort('qty7')">7G${s('qty7')}</th>
+                <th class="text-center cursor-pointer" onclick="handleSort('qty30')">30G${s('qty30')}</th>
+                <th class="text-center cursor-pointer" onclick="handleSort('qty365')">365G${s('qty365')}</th>
+                <th class="text-center cursor-pointer" onclick="handleSort('restock')">WEEKS${s('restock')}</th>
+            </tr>`;
         }
 
-        function switchTab(t) {
-            activeView = t;
-            el('view-inventory').classList.toggle('hidden', t !== 'inventory');
-            el('view-bs').classList.toggle('hidden', t !== 'bestsellers');
-            el('filter-section').classList.toggle('hidden', t !== 'inventory');
-            el('btn-inv').className = t === 'inventory' ? 'px-4 py-2 font-bold border-b-4 border-brand-orange text-brand-orange' : 'px-4 py-2 font-bold border-b-4 border-transparent';
-            el('btn-bs').className = t === 'bestsellers' ? 'px-4 py-2 font-bold border-b-4 border-brand-orange text-brand-orange' : 'px-4 py-2 font-bold border-b-4 border-transparent';
+        function switchTab(tab) {
+            currentTab = tab;
+            document.getElementById('nav-inv').className = tab === 'inventory' ? 'px-4 py-2 font-bold border-b-4 border-brand-orange text-brand-orange' : 'px-4 py-2 font-bold border-b-4 border-transparent';
+            document.getElementById('nav-bs').className = tab === 'bestsellers' ? 'px-4 py-2 font-bold border-b-4 border-brand-orange text-brand-orange' : 'px-4 py-2 font-bold border-b-4 border-transparent';
+            document.getElementById('filter-section').classList.toggle('hidden', tab !== 'inventory');
             render();
         }
 
-        function resort(k) {
-            if(sortKey === k) sortDir *= -1;
-            else { sortKey = k; sortDir = -1; }
+        function handleSort(col) {
+            if(sortCol === col) sortAsc = !sortAsc;
+            else { sortCol = col; sortAsc = false; }
             render();
         }
 
-        function showLoading(show, text="") {
-            el('loader-area').classList.toggle('hidden', !show);
-            if(text) el('loader-text').innerText = text;
+        function debounceRender() {
+            clearTimeout(searchTimeout);
+            searchTimeout = setTimeout(render, 300);
         }
 
-        function populateSelects() {
+        function updateLoader(txt) { document.getElementById('loader-text').innerText = txt; }
+
+        function populateFilters() {
             const cats = new Set(), brands = new Set(), shelves = new Set();
-            dataStore.forEach(p => { if(p.cat) cats.add(p.cat); if(p.brand) brands.add(p.brand); if(p.shelf) shelves.add(p.shelf); });
-            const fill = (id, set) => { const s = el(id); [...set].sort().forEach(v => { const o = document.createElement('option'); o.value = v; o.text = v; s.add(o); }); };
+            db.forEach(p => { if(p.cat) cats.add(p.cat); if(p.brand) brands.add(p.brand); if(p.shelf) shelves.add(p.shelf); });
+            const fill = (id, set) => { const s = document.getElementById(id); [...set].sort().forEach(v => { const o = document.createElement('option'); o.value = v; o.text = v; s.add(o); }); };
             fill('f-cat', cats); fill('f-brand', brands); fill('f-shelf', shelves);
         }
 
         function openModal(sku) {
-            const p = dataStore.find(x => x.sku === sku);
-            el('m-img').src = p.img;
-            el('m-sku').innerText = p.sku;
-            el('m-brand').innerText = p.brand;
-            el('m-qty').innerText = `Giacenza: ${p.qty} - Scaffale: ${p.shelf}`;
-            el('modal').classList.remove('hidden');
+            const p = db.find(x => x.sku === sku);
+            document.getElementById('m-img').src = p.img;
+            document.getElementById('m-sku').innerText = p.sku;
+            document.getElementById('m-qty').innerText = p.qty;
+            document.getElementById('m-shelf').innerText = p.shelf;
+            document.getElementById('modal').classList.remove('hidden');
         }
-        function closeModal() { el('modal').classList.add('hidden'); }
-
-        document.getElementById('search-box').addEventListener('input', () => {
-            clearTimeout(window.searchTimeout);
-            window.searchTimeout = setTimeout(render, 300);
-        });
+        function closeModal() { document.getElementById('modal').classList.add('hidden'); }
 
         init();
     </script>
