@@ -25,7 +25,7 @@
         .skugls { width: 150px; overflow-wrap: break-word; word-break: break-all; }
         
         .sku-button {
-            font-weight: 500; color: var(--brand-orange); text-decoration: none;
+            font-weight: 600; color: var(--brand-orange); text-decoration: none;
             background: none; border: none; padding: 0; cursor: pointer;
             transition: all 0.2s ease; text-align: left; width: 100%;
         }
@@ -41,6 +41,9 @@
         }
         .gemini-button:hover { background-color: #E48A1A; }
         .gemini-button:disabled { background-color: #fcae4a; cursor: not-allowed; }
+
+        /* Colore per prodotti in esaurimento */
+        .low-stock-alert { background-color: #F5DEB3 !important; }
 
         @keyframes rotation { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
     </style>
@@ -99,7 +102,7 @@
                                 <th class="p-4 skugls text-left text-sm font-semibold uppercase">SKU GLS</th>
                                 <th class="p-4 text-left text-sm font-semibold uppercase">Categoria</th>
                                 <th class="p-4 text-left text-sm font-semibold uppercase">Brand</th>
-                                <th class="p-4 text-left text-sm font-semibold uppercase">QTY Mag</th>
+                                <th class="p-4 text-left text-sm font-semibold uppercase text-center">QTY Mag</th>
                                 <th class="p-4 text-left text-sm font-semibold uppercase">Scaffale</th>
                             </tr>
                         </thead>
@@ -116,10 +119,11 @@
                             <tr>
                                 <th class="p-4 text-left text-sm font-semibold uppercase">Immagine</th>
                                 <th class="p-4 skugls text-left text-sm font-semibold uppercase">SKU GLS</th>
-                                <th id="th-24h" onclick="sortBestSellers('qty24')" class="p-4 text-left text-sm font-semibold uppercase cursor-pointer hover:bg-opacity-80">24 H <span id="sort-arrow-24h"></span></th>
-                                <th id="th-7g" onclick="sortBestSellers('qty7')" class="p-4 text-left text-sm font-semibold uppercase cursor-pointer hover:bg-opacity-80">7 GG <span id="sort-arrow-7g"></span></th>
-                                <th id="th-30g" onclick="sortBestSellers('qty30')" class="p-4 text-left text-sm font-semibold uppercase cursor-pointer hover:bg-opacity-80">30 GG <span id="sort-arrow-30g"></span></th>
-                                <th id="th-365g" onclick="sortBestSellers('qty365')" class="p-4 text-left text-sm font-semibold uppercase cursor-pointer hover:bg-opacity-80">365 GG <span id="sort-arrow-365g"></span></th>
+                                <th id="th-24h" onclick="sortBestSellers('qty24')" class="p-4 text-left text-sm font-semibold uppercase cursor-pointer hover:bg-opacity-80 text-center">24 H <span id="sort-arrow-24h"></span></th>
+                                <th id="th-7g" onclick="sortBestSellers('qty7')" class="p-4 text-left text-sm font-semibold uppercase cursor-pointer hover:bg-opacity-80 text-center">7 GG <span id="sort-arrow-7g"></span></th>
+                                <th id="th-30g" onclick="sortBestSellers('qty30')" class="p-4 text-left text-sm font-semibold uppercase cursor-pointer hover:bg-opacity-80 text-center">30 GG <span id="sort-arrow-30g"></span></th>
+                                <th id="th-365g" onclick="sortBestSellers('qty365')" class="p-4 text-left text-sm font-semibold uppercase cursor-pointer hover:bg-opacity-80 text-center">365 GG <span id="sort-arrow-365g"></span></th>
+                                <th id="th-restock" onclick="sortBestSellers('qtyRestockWeeks')" class="p-4 text-left text-sm font-semibold uppercase cursor-pointer hover:bg-opacity-80 text-center">RESTOCK SETTIMANE <span id="sort-arrow-restock"></span></th>
                             </tr>
                         </thead>
                         <tbody id="bestsellers-table-body" class="divide-y divide-gray-200"></tbody>
@@ -171,84 +175,66 @@
         // CONFIGURAZIONE
         const CSV_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQLf2HBC2g4q3L-hER7WPpYixWIIqJyV6MAkWm4ENZlQNrLxbroZRP3HBZ7Uzl510OVON8q590_YH_S/pub?gid=938359466&single=true&output=csv';
         const LOG_VENDITE_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQLf2HBC2g4q3L-hER7WPpYixWIIqJyV6MAkWm4ENZlQNrLxbroZRP3HBZ7Uzl510OVON8q590_YH_S/pub?gid=135483104&single=true&output=csv';
-        const APPS_SCRIPT_URL = 'INSERISCI_QUI_URL_APPS_SCRIPT'; // <--- RIMETTI IL TUO URL QUI
+        const APPS_SCRIPT_URL = 'INSERISCI_QUI_URL_APPS_SCRIPT'; 
         const apiKey = ""; 
 
-        // GLOBALI
         let allProducts = [];
         let salesLog24h = new Map();
         let sortState = { column: 'qty24', direction: 'desc' };
         let currentEditingSku = null, currentEditingField = null;
-        let isBestsellersRendered = false; // Flag per lazy loading
+        let isBestsellersRendered = false;
 
-        // Mapping CSV
-        const COLS = { A_ASIN: 0, B: 1, C_SKU: 2, E_CAT: 4, F_BRAND: 5, H_QTY: 7, I_SCAFFALE: 8, Q_7G: 16, R_30G: 17, S_365G: 18, AB_IMG: 28 };
+        // Mapping CSV: Aggiornato T_RESTOCK (Colonna T = Indice 19)
+        const COLS = { A_ASIN: 0, B: 1, C_SKU: 2, E_CAT: 4, F_BRAND: 5, H_QTY: 7, I_SCAFFALE: 8, Q_7G: 16, R_30G: 17, S_365G: 18, T_RESTOCK: 19, AB_IMG: 27 };
 
-        // DOM Elements
         const el = id => document.getElementById(id);
         
         document.addEventListener('DOMContentLoaded', () => {
             fetchData();
-            
-            el('search-box').addEventListener('input', () => renderTable()); // Debounce opzionale qui
+            el('search-box').addEventListener('input', () => renderTable());
             el('filter-category').addEventListener('change', renderTable);
             el('filter-brand').addEventListener('change', renderTable);
             el('filter-shelf').addEventListener('change', renderTable);
 
-            // Delegated events
             document.body.addEventListener('click', e => {
                 const btn = e.target.closest('.sku-button');
                 if (btn) openProductModal(btn.dataset.sku);
-                
-                const edit = e.target.closest('.editable-cell');
-                if (edit && !currentEditingSku) { /* Gestito inline onclick per semplicità, ma meglio qui */ }
-                
                 if (e.target === el('product-modal')) closeProductModal();
                 if (e.target === el('edit-modal')) closeEditModal();
             });
         });
 
-        // --- FETCH OTTIMIZZATO ---
         async function fetchData() {
             try {
                 const [invRes, logRes] = await Promise.all([fetch(CSV_URL), fetch(LOG_VENDITE_URL)]);
-                if (!invRes.ok || !logRes.ok) throw new Error("Errore HTTP");
-                
                 const [invText, logText] = await Promise.all([invRes.text(), logRes.text()]);
-
                 processLogVendite(logText);
                 allProducts = parseCSVFast(invText);
-                
                 populateFilters();
-                renderTable(); // Renderizza solo Inventario all'inizio
-                
+                renderTable();
                 el('status-message').classList.add('hidden');
-                switchTab('inventory'); // Forza vista iniziale
+                switchTab('inventory');
             } catch (err) {
-                console.error(err);
                 el('status-message').innerHTML = `<span class="text-red-600">Errore caricamento. Ricarica la pagina.</span>`;
             }
         }
 
-        // --- PARSER CSV VELOCE (REGEX) ---
         function parseCSVFast(text) {
             const rows = text.split(/\r?\n/);
-            // Salta header
             if (rows.length > 0) rows.shift();
-            
-            // Regex ottimizzata per split CSV rispettando le virgolette
-            // Nota: Questo è molto più veloce di un ciclo for char-by-char
             const regex = /,(?=(?:(?:[^"]*"){2})*[^"]*$)/;
             
             return rows.map(row => {
                 if (!row.trim()) return null;
-                // Split veloce
                 const cols = row.split(regex).map(s => s.replace(/^"|"$/g, '').trim());
-                
                 const sku = cols[COLS.C_SKU];
                 if (!sku) return null;
 
                 const asin = cols[COLS.A_ASIN] || '';
+                // Calcolo Restock Settimane (Col T * 4.5)
+                let restockMesi = parseFloat(cols[COLS.T_RESTOCK]) || 0;
+                let restockSettimane = restockMesi * 4.5;
+
                 return {
                     sku: sku,
                     asin: asin,
@@ -261,17 +247,16 @@
                     qty7: parseInt(cols[COLS.Q_7G]) || 0,
                     qty30: parseInt(cols[COLS.R_30G]) || 0,
                     qty365: parseInt(cols[COLS.S_365G]) || 0,
+                    qtyRestockWeeks: restockSettimane,
                     searchData: (asin + " " + cols[COLS.B] + " " + sku + " " + cols[COLS.E_CAT] + " " + cols[COLS.F_BRAND]).toLowerCase()
                 };
             }).filter(p => p !== null);
         }
 
-        // --- PARSING DATE ROBUSTO ---
         function processLogVendite(text) {
             const rows = text.split(/\r?\n/);
             rows.shift();
             salesLog24h.clear();
-            
             const now = new Date();
             const oneDayMs = 24 * 60 * 60 * 1000;
             const regex = /,(?=(?:(?:[^"]*"){2})*[^"]*$)/;
@@ -281,48 +266,31 @@
                 const cols = row.split(regex).map(s => s.replace(/^"|"$/g, '').trim());
                 if (cols.length < 3) return;
 
-                const dateStr = cols[0]; // Data
-                const asin = cols[1];    // ASIN
+                const dateStr = cols[0]; 
+                const asin = cols[1];
                 const qty = parseInt(cols[2]) || 0;
 
                 let entryDate;
-                
-                // Tenta parsing manuale DD/MM/YYYY o DD-MM-YYYY
-                const parts = dateStr.split(/[\/\-\s:]/); // Split su / - spazio o :
+                const parts = dateStr.split(/[\/\-\s:]/);
                 if (parts.length >= 3) {
-                    // Assumiamo DD/MM/YYYY o YYYY-MM-DD
-                    const p1 = parseInt(parts[0]);
-                    const p2 = parseInt(parts[1]);
-                    const p3 = parseInt(parts[2]);
-                    
-                    // Rilevamento euristico: Se p1 > 12 è sicuramente il giorno (o anno).
-                    // Google sheet IT standard: GG/MM/AAAA HH:MM
-                    if (p3 > 1000) {
-                        // Formato GG/MM/AAAA
-                        const h = parts[3] ? parseInt(parts[3]) : 0;
-                        const m = parts[4] ? parseInt(parts[4]) : 0;
+                    const p1 = parseInt(parts[0]), p2 = parseInt(parts[1]), p3 = parseInt(parts[2]);
+                    if (p3 > 1000) { // GG/MM/AAAA
+                        const h = parts[3] ? parseInt(parts[3]) : 0, m = parts[4] ? parseInt(parts[4]) : 0;
                         entryDate = new Date(p3, p2 - 1, p1, h, m);
-                    } else if (p1 > 1000) {
-                        // Formato AAAA-MM-GG
+                    } else if (p1 > 1000) { // AAAA-MM-GG
                         entryDate = new Date(p1, p2 - 1, p3);
                     }
                 }
-
-                // Fallback a Date.parse se manuale fallisce
-                if (!entryDate || isNaN(entryDate.getTime())) {
-                    entryDate = new Date(dateStr);
-                }
+                if (!entryDate || isNaN(entryDate.getTime())) entryDate = new Date(dateStr);
 
                 if (!isNaN(entryDate.getTime())) {
                     if (now - entryDate <= oneDayMs && now >= entryDate) {
-                        const current = salesLog24h.get(asin) || 0;
-                        salesLog24h.set(asin, current + qty);
+                        salesLog24h.set(asin, (salesLog24h.get(asin) || 0) + qty);
                     }
                 }
             });
         }
 
-        // --- FILTRI ---
         function populateFilters() {
             const cats = new Set(), brands = new Set(), shelves = new Set();
             allProducts.forEach(p => {
@@ -337,125 +305,87 @@
             fill('filter-category', cats); fill('filter-brand', brands); fill('filter-shelf', shelves);
         }
 
-        // --- GESTIONE VISTE (LAZY LOADING) ---
         function switchTab(view) {
-            const invView = el('inventory-view');
-            const invWrap = el('inventory-container-wrapper');
-            const bsHeader = el('bestsellers-header');
-            const bsWrap = el('bestsellers-container-wrapper');
-            const navInv = el('nav-inventory');
-            const navBs = el('nav-bestsellers');
-
             if (view === 'inventory') {
-                invView.classList.remove('hidden');
-                invWrap.classList.remove('hidden');
-                bsHeader.classList.add('hidden');
-                bsWrap.classList.add('hidden');
-                
-                navInv.className = "text-lg font-semibold text-brand-orange border-b-2 border-brand-orange pb-1 transition-all";
-                navBs.className = "text-lg font-semibold text-brand-gray hover:text-brand-orange transition-all";
+                el('inventory-view').classList.remove('hidden'); el('inventory-container-wrapper').classList.remove('hidden');
+                el('bestsellers-header').classList.add('hidden'); el('bestsellers-container-wrapper').classList.add('hidden');
+                el('nav-inventory').className = "text-lg font-semibold text-brand-orange border-b-2 border-brand-orange pb-1";
+                el('nav-bestsellers').className = "text-lg font-semibold text-brand-gray hover:text-brand-orange";
             } else {
-                invView.classList.add('hidden');
-                invWrap.classList.add('hidden');
-                bsHeader.classList.remove('hidden');
-                bsWrap.classList.remove('hidden');
-                
-                navInv.className = "text-lg font-semibold text-brand-gray hover:text-brand-orange transition-all";
-                navBs.className = "text-lg font-semibold text-brand-orange border-b-2 border-brand-orange pb-1 transition-all";
-                
-                // Lazy render: Genera la tabella solo al primo click
-                if (!isBestsellersRendered) {
-                    renderBestSellers();
-                    isBestsellersRendered = true;
-                }
+                el('inventory-view').classList.add('hidden'); el('inventory-container-wrapper').classList.add('hidden');
+                el('bestsellers-header').classList.remove('hidden'); el('bestsellers-container-wrapper').classList.remove('hidden');
+                el('nav-inventory').className = "text-lg font-semibold text-brand-gray hover:text-brand-orange";
+                el('nav-bestsellers').className = "text-lg font-semibold text-brand-orange border-b-2 border-brand-orange pb-1";
+                renderBestSellers();
             }
         }
 
-        // --- RENDER INVENTARIO ---
         function renderTable() {
             const term = el('search-box').value.toLowerCase().trim();
             const keys = term.split(' ').filter(k => k);
             const cat = el('filter-category').value, br = el('filter-brand').value, sh = el('filter-shelf').value;
 
-            // Filtro veloce
             const filtered = allProducts.filter(p => {
                 if (cat && p.categoria !== cat) return false;
                 if (br && p.brand !== br) return false;
                 if (sh && p.scaffale !== sh) return false;
-                if (keys.length > 0) {
-                    return keys.every(k => p.searchData.includes(k));
-                }
-                return true;
+                return keys.length === 0 || keys.every(k => p.searchData.includes(k));
             });
 
-            const tb = el('results-table-body');
-            const cards = el('results-cards-container');
-            const cont = el('results-container');
-            const msg = el('status-message');
-
+            const tb = el('results-table-body'), cards = el('results-cards-container');
             tb.innerHTML = ''; cards.innerHTML = '';
 
             if (filtered.length === 0) {
-                cont.classList.add('hidden'); cards.classList.add('hidden');
-                msg.innerHTML = '<div class="p-8 text-center text-gray-500">Nessun prodotto trovato.</div>';
-                msg.classList.remove('hidden');
-                return;
+                el('results-container').classList.add('hidden'); cards.classList.add('hidden');
+                el('status-message').innerHTML = '<div class="p-8 text-center text-gray-500">Nessun prodotto trovato.</div>';
+                el('status-message').classList.remove('hidden'); return;
             }
 
-            msg.classList.add('hidden');
-            cont.classList.remove('hidden'); cards.classList.remove('hidden');
-
-            const isSingle = filtered.length === 1;
+            el('status-message').classList.add('hidden');
+            el('results-container').classList.remove('hidden'); cards.classList.remove('hidden');
             
-            // Limitiamo il render a 100 elementi per performance se non c'è ricerca specifica
-            const toRender = filtered.slice(0, 100); 
-
+            const isSingle = filtered.length === 1;
             let rows = '', cardsHtml = '';
             
-            toRender.forEach(p => {
+            filtered.slice(0, 100).forEach(p => {
                 const img = p.immagine || `https://placehold.co/150x150/FD991F/white?text=${p.sku[0]}`;
-                const imgMob = p.immagine || `https://placehold.co/300x300/FD991F/white?text=${p.sku[0]}`;
-
                 rows += `
-                    <tr class="hover:bg-gray-50 transition-colors">
-                        <td class="p-3"><img src="${img}" class="w-[150px] h-[150px] object-contain rounded-md bg-white" loading="lazy" onerror="this.src='https://placehold.co/150x150/FD991F/white?text=?'"></td>
+                    <tr class="hover:bg-gray-50">
+                        <td class="p-3 text-center"><img src="${img}" class="w-[150px] h-[150px] object-contain rounded-md bg-white mx-auto shadow-sm" loading="lazy" onerror="this.src='https://placehold.co/150x150/FD991F/white?text=?'"></td>
                         <td class="p-3 skugls"><button class="sku-button" data-sku="${p.sku}">${p.sku}</button></td>
                         <td class="p-3 text-sm text-gray-700">${p.categoria}</td>
                         <td class="p-3 text-2xl font-bold text-gray-900">${p.brand}</td>
-                        <td class="p-3 text-3xl font-bold text-center editable-cell" onclick="openEditModal('${p.sku}', 'qty', '${p.qty}')">${p.qty}</td>
+                        <td class="p-3 text-4xl font-bold text-center editable-cell" onclick="openEditModal('${p.sku}', 'qty', '${p.qty}')">${p.qty}</td>
                         <td class="p-3 text-5xl font-bold text-brand-orange leading-tight break-words max-w-[300px] editable-cell" onclick="openEditModal('${p.sku}', 'scaffale', '${p.scaffale}')">${p.scaffale}</td>
                     </tr>`;
 
                 if (isSingle) {
                     cardsHtml += `
                         <div class="p-6 flex flex-col items-center text-center space-y-6">
-                            <div class="w-full bg-white rounded-xl p-4 border border-gray-100"><img src="${imgMob}" class="w-full max-w-[300px] mx-auto object-contain" onerror="this.src='https://placehold.co/300x300/FD991F/white?text=?'"></div>
+                            <div class="w-full bg-white rounded-xl p-4 border border-gray-100"><img src="${img}" class="w-full max-w-[300px] mx-auto object-contain"></div>
                             <div class="w-full"><button class="sku-button w-full text-center" data-sku="${p.sku}"><h2 class="text-3xl font-bold text-brand-orange break-all">${p.sku}</h2></button>
                             <p class="text-xl font-medium text-gray-900 mt-2">${p.brand}</p>
                             <div class="mt-6 grid grid-cols-2 gap-4 bg-gray-50 rounded-xl p-4 border border-gray-200">
-                                <div class="flex flex-col editable-cell p-2" onclick="openEditModal('${p.sku}', 'qty', '${p.qty}')"><span class="text-sm text-gray-500 font-semibold">Quantità ✏️</span><span class="text-3xl font-bold text-gray-900">${p.qty}</span></div>
-                                <div class="flex flex-col editable-cell p-2" onclick="openEditModal('${p.sku}', 'scaffale', '${p.scaffale}')"><span class="text-sm text-gray-500 font-semibold">Scaffale ✏️</span><span class="text-5xl font-bold text-brand-orange break-words leading-tight">${p.scaffale}</span></div>
+                                <div class="flex flex-col editable-cell p-2" onclick="openEditModal('${p.sku}', 'qty', '${p.qty}')"><span class="text-sm text-gray-500 font-semibold uppercase">Quantità</span><span class="text-4xl font-bold text-gray-900">${p.qty}</span></div>
+                                <div class="flex flex-col editable-cell p-2" onclick="openEditModal('${p.sku}', 'scaffale', '${p.scaffale}')"><span class="text-sm text-gray-500 font-semibold uppercase">Scaffale</span><span class="text-5xl font-bold text-brand-orange break-words leading-tight">${p.scaffale}</span></div>
                             </div></div>
                         </div>`;
                 } else {
                     cardsHtml += `
                         <div class="flex p-4 border-b border-gray-200 last:border-b-0">
-                            <div class="flex-shrink-0 w-[120px] h-[120px] bg-white rounded-md border border-gray-100 p-1 flex items-center justify-center"><img src="${img}" class="w-full h-full object-contain" loading="lazy" onerror="this.src='https://placehold.co/150x150/FD991F/white?text=?'"></div>
+                            <div class="flex-shrink-0 w-[120px] h-[120px] bg-white rounded-md border border-gray-100 p-1 flex items-center justify-center"><img src="${img}" class="w-full h-full object-contain" loading="lazy"></div>
                             <div class="ml-4 flex-grow min-w-0">
                                 <button class="sku-button" data-sku="${p.sku}"><h3 class="text-lg font-bold text-brand-orange truncate">${p.sku}</h3></button>
                                 <p class="text-sm font-medium text-gray-900 truncate">${p.brand}</p>
-                                <p class="text-base font-semibold text-gray-800 mt-1 w-max editable-cell" onclick="openEditModal('${p.sku}', 'qty', '${p.qty}')">QTY: ${p.qty} ✏️</p>
-                                <p class="text-2xl font-bold text-gray-700 mt-1 w-max editable-cell" onclick="openEditModal('${p.sku}', 'scaffale', '${p.scaffale}')">Scaff: ${p.scaffale} ✏️</p>
+                                <p class="text-2xl font-bold text-gray-800 mt-1 editable-cell w-max" onclick="openEditModal('${p.sku}', 'qty', '${p.qty}')">QTY: ${p.qty}</p>
+                                <p class="text-3xl font-bold text-gray-700 mt-1 editable-cell w-max" onclick="openEditModal('${p.sku}', 'scaffale', '${p.scaffale}')">Scaff: ${p.scaffale}</p>
                             </div>
                         </div>`;
                 }
             });
-            
-            tb.innerHTML = rows;
-            cards.innerHTML = cardsHtml;
+            tb.innerHTML = rows; cards.innerHTML = cardsHtml;
         }
 
-        // --- RENDER BEST SELLERS ---
         function sortBestSellers(col) {
             if (sortState.column === col) sortState.direction = sortState.direction === 'asc' ? 'desc' : 'asc';
             else { sortState.column = col; sortState.direction = 'desc'; }
@@ -464,54 +394,52 @@
 
         function renderBestSellers() {
             const data = allProducts.filter(p => p.qty24 > 0 || p.qty7 > 0 || p.qty30 > 0 || p.qty365 > 0);
-            
             data.sort((a, b) => sortState.direction === 'asc' ? a[sortState.column] - b[sortState.column] : b[sortState.column] - a[sortState.column]);
             
-            ['24h', '7g', '30g', '365g'].forEach(k => { const e = el('sort-arrow-'+k); if(e) e.textContent = ''; });
+            ['24h', '7g', '30g', '365g', 'restock'].forEach(k => { const e = el('sort-arrow-'+k); if(e) e.textContent = ''; });
             const arr = sortState.direction === 'asc' ? ' ↑' : ' ↓';
-            const map = { qty24: '24h', qty7: '7g', qty30: '30g', qty365: '365g' };
+            const map = { qty24: '24h', qty7: '7g', qty30: '30g', qty365: '365g', qtyRestockWeeks: 'restock' };
             if(el('sort-arrow-'+map[sortState.column])) el('sort-arrow-'+map[sortState.column]).textContent = arr;
 
-            const tb = el('bestsellers-table-body');
-            const cards = el('bestsellers-cards-container');
-            
-            if (data.length === 0) {
-                tb.innerHTML = '<tr><td colspan="6" class="p-8 text-center text-gray-500">Nessun dato.</td></tr>';
-                cards.innerHTML = '<div class="p-8 text-center text-gray-500">Nessun dato.</div>';
-                return;
-            }
+            const tb = el('bestsellers-table-body'), cards = el('bestsellers-cards-container');
+            if (data.length === 0) { tb.innerHTML = '<tr><td colspan="7" class="p-8 text-center">Nessun dato.</td></tr>'; return; }
 
             let rows = '', cardsHtml = '';
-            data.slice(0, 100).forEach(p => { // Limitiamo a 100 per performance
+            data.slice(0, 100).forEach(p => {
                 const img = p.immagine || `https://placehold.co/150x150/FD991F/white?text=${p.sku[0]}`;
+                const restockVal = p.qtyRestockWeeks.toFixed(1);
+                const isAlert = p.qtyRestockWeeks < 4;
+                const alertClass = isAlert ? 'low-stock-alert' : '';
+
                 rows += `
-                    <tr class="hover:bg-gray-50 transition-colors">
-                        <td class="p-3"><img src="${img}" class="w-[150px] h-[150px] object-contain rounded-md bg-white" loading="lazy" onerror="this.src='https://placehold.co/150x150/FD991F/white?text=?'"></td>
-                        <td class="p-3 skugls"><button class="sku-button" data-sku="${p.sku}">${p.sku}</button></td>
-                        <td class="p-3 text-lg font-bold text-center text-red-600">${p.qty24}</td>
-                        <td class="p-3 text-lg font-semibold text-center">${p.qty7}</td>
-                        <td class="p-3 text-lg font-semibold text-center">${p.qty30}</td>
-                        <td class="p-3 text-lg font-semibold text-center">${p.qty365}</td>
+                    <tr class="hover:bg-opacity-80 transition-colors ${alertClass}">
+                        <td class="p-3 text-center"><img src="${img}" class="w-[150px] h-[150px] object-contain rounded-md bg-white mx-auto shadow-sm"></td>
+                        <td class="p-3 skugls"><button class="sku-button text-lg" data-sku="${p.sku}">${p.sku}</button></td>
+                        <td class="p-3 text-4xl font-bold text-center text-red-600">${p.qty24}</td>
+                        <td class="p-3 text-3xl font-bold text-center">${p.qty7}</td>
+                        <td class="p-3 text-3xl font-bold text-center">${p.qty30}</td>
+                        <td class="p-3 text-3xl font-bold text-center">${p.qty365}</td>
+                        <td class="p-3 text-4xl font-black text-center ${isAlert ? 'text-red-700' : 'text-green-700'}">${restockVal}</td>
                     </tr>`;
                 
                 cardsHtml += `
-                    <div class="flex flex-col p-4 border-b border-gray-200 last:border-b-0">
+                    <div class="flex flex-col p-4 border-b border-gray-200 ${alertClass}">
                         <div class="flex items-center mb-4">
-                            <div class="flex-shrink-0 w-[100px] h-[100px] bg-white rounded-md border border-gray-100 flex items-center justify-center p-1"><img src="${img}" class="w-full h-full object-contain" loading="lazy" onerror="this.src='https://placehold.co/150x150/FD991F/white?text=?'"></div>
-                            <div class="ml-4 flex-grow min-w-0"><button class="sku-button" data-sku="${p.sku}"><h3 class="text-lg font-bold text-brand-orange truncate">${p.sku}</h3></button><p class="text-sm font-medium text-gray-900 truncate">${p.brand}</p></div>
+                            <div class="flex-shrink-0 w-[100px] h-[100px] bg-white rounded-md border p-1 flex items-center justify-center"><img src="${img}" class="w-full h-full object-contain"></div>
+                            <div class="ml-4 flex-grow min-w-0"><button class="sku-button" data-sku="${p.sku}"><h3 class="text-xl font-bold text-brand-orange truncate">${p.sku}</h3></button><p class="text-sm font-medium text-gray-900 truncate">${p.brand}</p></div>
                         </div>
-                        <div class="grid grid-cols-4 gap-2 text-center bg-gray-50 p-2 rounded-lg">
-                            <div><div class="text-xs text-gray-500">24H</div><div class="text-lg font-bold text-red-600">${p.qty24}</div></div>
-                            <div><div class="text-xs text-gray-500">7G</div><div class="text-lg font-semibold">${p.qty7}</div></div>
-                            <div><div class="text-xs text-gray-500">30G</div><div class="text-lg font-semibold">${p.qty30}</div></div>
-                            <div><div class="text-xs text-gray-500">365G</div><div class="text-lg font-semibold">${p.qty365}</div></div>
+                        <div class="grid grid-cols-5 gap-1 text-center bg-white/50 p-3 rounded-lg shadow-inner">
+                            <div><div class="text-[10px] text-gray-500 font-bold uppercase">24H</div><div class="text-2xl font-bold text-red-600">${p.qty24}</div></div>
+                            <div><div class="text-[10px] text-gray-500 font-bold uppercase">7G</div><div class="text-2xl font-bold">${p.qty7}</div></div>
+                            <div><div class="text-[10px] text-gray-500 font-bold uppercase">30G</div><div class="text-2xl font-bold">${p.qty30}</div></div>
+                            <div><div class="text-[10px] text-gray-500 font-bold uppercase">365G</div><div class="text-2xl font-bold">${p.qty365}</div></div>
+                            <div><div class="text-[10px] text-gray-500 font-bold uppercase text-brand-orange">RESTOCK</div><div class="text-2xl font-black ${isAlert ? 'text-red-700' : 'text-green-700'}">${restockVal}</div></div>
                         </div>
                     </div>`;
             });
             tb.innerHTML = rows; cards.innerHTML = cardsHtml;
         }
 
-        // --- GESTIONE MODALI EDIT & PRODOTTO ---
         function openProductModal(sku) {
             const p = allProducts.find(x => x.sku === sku); if(!p) return;
             el('modal-img').src = p.immagine || `https://placehold.co/150x150/FD991F/white?text=${p.sku[0]}`;
@@ -546,7 +474,7 @@
 
         async function callGemini(p) {
             el('gemini-generate-btn').disabled = true; el('gemini-result-container').innerHTML = '<span class="loader" style="width:24px;height:24px;border-width:3px"></span>';
-            const q = `Descrivi prodotto:\nBrand: ${p.brand}\nCat: ${p.categoria}\nSKU: ${p.sku}`;
+            const q = `Descrivi prodotto: Brand: ${p.brand} Cat: ${p.categoria} SKU: ${p.sku}`;
             try {
                 const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ contents: [{ parts: [{ text: q }] }] }) });
                 const json = await res.json();
