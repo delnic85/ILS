@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Scannerizza Etichetta TEST - I LOVE SHOPPING</title>
+    <title>Scannerizza Etichetta - I LOVE SHOPPING</title>
     
     <script src="https://cdn.tailwindcss.com"></script>
     
@@ -319,6 +319,9 @@
                 let inv = { imageUrl: '', scaffale: 'N/D', brand: 'N/D' };
                 if (asin && inventoryDataMap.has(asin)) {
                     inv = inventoryDataMap.get(asin);
+                } else if (!asin) {
+                    // Fallback opzionale: se non c'è mapping SKU->ASIN, potremmo segnalarlo
+                    // console.log("ASIN mancante per SKU:", sku); 
                 }
 
                 const item = {
@@ -349,12 +352,16 @@
             let rawInput = searchBox.value.trim();
             let searchTerm = rawInput.toLowerCase();
 
-            // --- NUOVO FILTRO: Tracking 1790 ---
-            // Se inizia con "1790" ed è lungo esattamente 18 caratteri, toglie gli ultimi 3
+            // --- REGOLE DI PULIZIA DEL TRACKING ---
+            // 1. Se inizia con "1790" ed è lungo esattamente 18 caratteri, toglie gli ultimi 3
             if (searchTerm.startsWith('1790') && searchTerm.length === 18) {
                 searchTerm = searchTerm.slice(0, -3);
             } 
-            // Altrimenti, se supera i 30 caratteri (vecchia regola), prende gli ultimi 12
+            // 2. Se inizia con "089" ed è lungo esattamente 18 caratteri, toglie il primo carattere "0" e gli ultimi 3
+            else if (searchTerm.startsWith('089') && searchTerm.length === 18) {
+                searchTerm = searchTerm.slice(1, -3);
+            }
+            // 3. Altrimenti, se supera i 30 caratteri, prende gli ultimi 12
             else if (searchTerm.length > 30) {
                 searchTerm = searchTerm.slice(-12);
             }
