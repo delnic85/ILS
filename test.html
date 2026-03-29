@@ -82,7 +82,7 @@
                         <select id="country-filter" 
                                 class="w-full p-4 border border-gray-300 rounded-lg text-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-brand-orange focus:border-transparent bg-gray-50 appearance-none cursor-pointer font-medium text-gray-700">
                             <option value="-1">Tutti gli stati</option>
-                            </select>
+                        </select>
                         <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-4 text-gray-500">
                             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
                         </div>
@@ -149,19 +149,35 @@
             `https://docs.google.com/spreadsheets/d/${SHEET_ID_ORDINI}/gviz/tq?tqx=out:csv&sheet=${encodeURIComponent(nome)}`
         );
 
+        // URL SYNC PRODOTTI (Ponte tra SKU e ASIN)
         const SYNC_PRODOTTI_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQLf2HBC2g4q3L-hER7WPpYixWIIqJyV6MAkWm4ENZlQNrLxbroZRP3HBZ7Uzl510OVON8q590_YH_S/pub?gid=940187269&single=true&output=csv';
+
+        // URL MAGAZZINO (Info finali tramite ASIN)
         const INVENTORY_CSV_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQLf2HBC2g4q3L-hER7WPpYixWIIqJyV6MAkWm4ENZlQNrLxbroZRP3HBZ7Uzl510OVON8q590_YH_S/pub?gid=938359466&single=true&output=csv';
 
-        // --- MAPPATURA AMAZON (FISSA) ---
+        // MAPPATURE TEMU
+        const MAP_OLD = { ORDER_ID: 0, ITEM_TITLE: 7, SKU: 9, QTY: 11, CLIENT: 14, TRACKING: 33 };
+        const MAP_NEW = { ORDER_ID: 0, ITEM_TITLE: 7, SKU: 10, QTY: 12, CLIENT: 15, TRACKING: 34 };
+
+        // MAPPATURA AMAZON (FISSA)
         const MAP_AMAZON = { ORDER_ID: 11, TRACKING: 12, SKU: 14, ITEM_TITLE: 15, QTY: 17, CLIENT: 1 };
 
+        // SYNC: Colonna A = ASIN (0), Colonna B = SKU (1)
         const SYNC_COLS = { ASIN: 0, SKU: 1 };
-        const INVENTORY_COLS = { ASIN: 0, F_BRAND: 5, I_SCAFFALE: 8, AB_IMG_URL: 27 };
 
+        // MAGAZZINO: Colonna A = ASIN (0), il resto uguale
+        const INVENTORY_COLS = { 
+            ASIN: 0, // Chiave di ricerca nel magazzino
+            F_BRAND: 5, 
+            I_SCAFFALE: 8, 
+            AB_IMG_URL: 28 
+        };
+
+        // --- VARIABILI GLOBALI ---
         let searchBox, statusMessage, loadingText, ordersContainer, perfTimer, sidebarContainer, sidebarTbody, mainLayout, countryFilter;
         let allGroupedOrders = [];
-        let inventoryDataMap = new Map();
-        let skuToAsinMap = new Map();
+        let inventoryDataMap = new Map(); // Mappa finale: ASIN -> Dati Magazzino
+        let skuToAsinMap = new Map();     // Mappa ponte: SKU -> ASIN
         let trackingIndex = new Map();
         let skuCountsByReport = [];
         let searchStartTime = 0;
@@ -395,9 +411,14 @@
             if (cleanInput.startsWith("1790") && cleanInput.length === 18) {
                 cleanInput = cleanInput.slice(0, -3);
             }
-
+            // --- NUOVO FILTRO: Tracking 089 ---
+            // Se inizia con "089" ed è lungo esattamente 18 caratteri, toglie il primo "0" e gli ultimi 3 numeri
+            else if (cleanInput.startsWith("089") && cleanInput.length === 18) {
+                cleanInput = cleanInput.slice(1, -3);
+            }
+            // ------------------------------------------------------
             // Regola generale per tracking molto lunghi (taglia agli ultimi 12)
-            if (cleanInput.length > 30) {
+            else if (cleanInput.length > 30) {
                 cleanInput = cleanInput.slice(-12);
             }
 
@@ -461,7 +482,7 @@
                 const orderCard = document.createElement('div');
                 orderCard.className = 'bg-white rounded-2xl shadow-lg overflow-hidden mb-6';
                 
-                // Ricaviamo il nome della nazione per visualizzarla (opzionale ma utile)
+                // Ricaviamo il nome della nazione per visualizzarla
                 const nazioneNome = NOMI_SCHEDE[order.reportIndex] || '';
 
                 const headerHtml = `
