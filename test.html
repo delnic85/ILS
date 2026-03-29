@@ -283,9 +283,11 @@
                 if (order.tracking && order.tracking !== 'N/D') {
                     let cleanTrack = normalizeTracking(order.tracking);
                     
-                    // Taglio preventivo anche sull'indice per permettere un match perfetto al 100%
+                    // --- REGOLE APPLICATE ANCHE ALL'INDICE (CORREZIONE BUG 089) ---
                     if (cleanTrack.startsWith('1790') && cleanTrack.length === 18) {
                         cleanTrack = cleanTrack.slice(0, -3);
+                    } else if (cleanTrack.startsWith('089') && cleanTrack.length === 18) {
+                        cleanTrack = cleanTrack.slice(1, -3);
                     } else if (cleanTrack.length > 30) {
                         cleanTrack = cleanTrack.slice(-12);
                     }
@@ -344,16 +346,13 @@
 
                 let trackingValue = cols[mapping.TRACKING] ? cols[mapping.TRACKING].trim() : 'N/D';
 
-                // SOLUZIONE BUG: Raggruppamento per TRACKING invece che per ORDER_ID
-                // Questo unisce automaticamente più righe con ID Ordine diversi ma spedite nello stesso pacco!
+                // Raggruppamento per TRACKING invece che per ORDER_ID
                 let normTrack = (trackingValue !== 'N/D' && trackingValue !== '') ? normalizeTracking(trackingValue) : null;
                 let groupKey = normTrack ? normTrack : orderId;
 
                 if (ordersMap.has(groupKey)) {
-                    // Trovato! Aggiungi l'articolo a questo pacco
                     ordersMap.get(groupKey).items.push(item);
                 } else {
-                    // Crea un nuovo pacco
                     ordersMap.set(groupKey, {
                         orderId: orderId,
                         cliente: cols[mapping.CLIENT] || 'N/D',
@@ -367,20 +366,21 @@
 
         function renderOrders() {
             let rawInput = searchBox.value.trim();
-            let cleanInput = normalizeTracking(rawInput);
+            let searchTerm = normalizeTracking(rawInput);
 
-            // --- REGOLE DI TAGLIO TRACKING ---
-            // 1. Se inizia con 1790 ed è lungo 18 -> Taglia ultimi 3
-            if (cleanInput.startsWith('1790') && cleanInput.length === 18) {
-                cleanInput = cleanInput.slice(0, -3);
+            // --- REGOLE DI PULIZIA DEL TRACKING SULL'INPUT ---
+            if (searchTerm.startsWith('1790') && searchTerm.length === 18) {
+                searchTerm = searchTerm.slice(0, -3);
             } 
-            // 2. Regola generale (vecchia) per tracking molto lunghi
-            else if (cleanInput.length > 30) {
-                cleanInput = cleanInput.slice(-12);
+            else if (searchTerm.startsWith('089') && searchTerm.length === 18) {
+                searchTerm = searchTerm.slice(1, -3);
             }
-            // ---------------------------------
-
-            let searchTerm = cleanInput.toLowerCase();
+            else if (searchTerm.length > 30) {
+                searchTerm = searchTerm.slice(-12);
+            }
+            // -----------------------------------
+            
+            searchTerm = searchTerm.toLowerCase();
 
             let filteredOrders = [];
             if (trackingIndex.has(searchTerm)) {
