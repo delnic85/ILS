@@ -185,6 +185,12 @@
             loadAllData();
         });
 
+        // Funzione per pulire codici sporchi o con spazi
+        function normalizeTracking(code) {
+            if (!code) return "";
+            return code.toString().replace(/[^a-zA-Z0-9]/g, "").toUpperCase();
+        }
+
         async function loadAllData() {
             try {
                 // 1. Carica SYNC PRODOTTI (SKU -> ASIN)
@@ -249,7 +255,6 @@
                 const asin = cols[SYNC_COLS.ASIN];
                 const sku = cols[SYNC_COLS.SKU];
                 if (asin && sku) {
-                    // Normalizziamo lo SKU (trim) per evitare problemi di spazi
                     skuToAsinMap.set(sku.trim(), asin.trim());
                 }
             });
@@ -275,8 +280,17 @@
         function buildTrackingIndex() {
             trackingIndex.clear();
             allGroupedOrders.forEach(order => {
-                if (order.tracking) {
-                    trackingIndex.set(order.tracking.toLowerCase().trim(), order);
+                if (order.tracking && order.tracking !== 'N/D') {
+                    let cleanTrack = normalizeTracking(order.tracking);
+                    
+                    // Taglio preventivo anche sull'indice per permettere un match perfetto al 100%
+                    if (cleanTrack.startsWith('1790') && cleanTrack.length === 18) {
+                        cleanTrack = cleanTrack.slice(0, -3);
+                    } else if (cleanTrack.length > 30) {
+                        cleanTrack = cleanTrack.slice(-12);
+                    }
+
+                    trackingIndex.set(cleanTrack.toLowerCase(), order);
                 }
             });
         }
@@ -311,36 +325,39 @@
                 }
 
                 // --- LOGICA A PONTE ---
-                // 1. Ho lo SKU (dagli ordini)
-                // 2. Cerco l'ASIN corrispondente
                 const asin = skuToAsinMap.get(sku);
                 
-                // 3. Uso l'ASIN per trovare i dati in magazzino (oppure N/D se non trovato)
                 let inv = { imageUrl: '', scaffale: 'N/D', brand: 'N/D' };
                 if (asin && inventoryDataMap.has(asin)) {
                     inv = inventoryDataMap.get(asin);
-                } else if (!asin) {
-                    // Fallback opzionale: se non c'è mapping SKU->ASIN, potremmo segnalarlo
-                    // console.log("ASIN mancante per SKU:", sku); 
                 }
 
                 const item = {
                     articolo: cols[mapping.ITEM_TITLE] || 'N/D',
                     sku: sku, // Mostriamo ancora lo SKU Temu originale
-                    asin: asin || 'N/D', // Salviamo anche l'ASIN per riferimento
+                    asin: asin || 'N/D',
                     qty: qty,
                     imageUrl: inv.imageUrl,
                     scaffale: inv.scaffale,
                     brand: inv.brand
                 };
 
-                if (ordersMap.has(orderId)) {
-                    ordersMap.get(orderId).items.push(item);
+                let trackingValue = cols[mapping.TRACKING] ? cols[mapping.TRACKING].trim() : 'N/D';
+
+                // SOLUZIONE BUG: Raggruppamento per TRACKING invece che per ORDER_ID
+                // Questo unisce automaticamente più righe con ID Ordine diversi ma spedite nello stesso pacco!
+                let normTrack = (trackingValue !== 'N/D' && trackingValue !== '') ? normalizeTracking(trackingValue) : null;
+                let groupKey = normTrack ? normTrack : orderId;
+
+                if (ordersMap.has(groupKey)) {
+                    // Trovato! Aggiungi l'articolo a questo pacco
+                    ordersMap.get(groupKey).items.push(item);
                 } else {
-                    ordersMap.set(orderId, {
+                    // Crea un nuovo pacco
+                    ordersMap.set(groupKey, {
                         orderId: orderId,
                         cliente: cols[mapping.CLIENT] || 'N/D',
-                        tracking: cols[mapping.TRACKING] || 'N/D',
+                        tracking: trackingValue,
                         reportIndex: reportIndex,
                         items: [item]
                     });
@@ -350,22 +367,20 @@
 
         function renderOrders() {
             let rawInput = searchBox.value.trim();
-            let searchTerm = rawInput.toLowerCase();
+            let cleanInput = normalizeTracking(rawInput);
 
-            // --- REGOLE DI PULIZIA DEL TRACKING ---
-            // 1. Se inizia con "1790" ed è lungo esattamente 18 caratteri, toglie gli ultimi 3
-            if (searchTerm.startsWith('1790') && searchTerm.length === 18) {
-                searchTerm = searchTerm.slice(0, -3);
+            // --- REGOLE DI TAGLIO TRACKING ---
+            // 1. Se inizia con 1790 ed è lungo 18 -> Taglia ultimi 3
+            if (cleanInput.startsWith('1790') && cleanInput.length === 18) {
+                cleanInput = cleanInput.slice(0, -3);
             } 
-            // 2. Se inizia con "089" ed è lungo esattamente 18 caratteri, toglie il primo carattere "0" e gli ultimi 3
-            else if (searchTerm.startsWith('089') && searchTerm.length === 18) {
-                searchTerm = searchTerm.slice(1, -3);
+            // 2. Regola generale (vecchia) per tracking molto lunghi
+            else if (cleanInput.length > 30) {
+                cleanInput = cleanInput.slice(-12);
             }
-            // 3. Altrimenti, se supera i 30 caratteri, prende gli ultimi 12
-            else if (searchTerm.length > 30) {
-                searchTerm = searchTerm.slice(-12);
-            }
-            // -----------------------------------
+            // ---------------------------------
+
+            let searchTerm = cleanInput.toLowerCase();
 
             let filteredOrders = [];
             if (trackingIndex.has(searchTerm)) {
