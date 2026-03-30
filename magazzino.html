@@ -33,10 +33,11 @@
 
         <div id="filter-section" class="bg-white rounded-2xl shadow-md p-6 mb-6">
             <input type="text" id="search-box" oninput="debounceRender()" placeholder="Cerca SKU, brand, scaffale..." class="w-full p-4 border rounded-xl mb-4 focus:ring-2 focus:ring-brand-orange outline-none text-lg">
-            <div id="select-filters" class="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div id="select-filters" class="grid grid-cols-1 md:grid-cols-4 gap-4">
                 <select id="f-cat" onchange="render()" class="p-3 border rounded-lg bg-gray-50"><option value="">Tutte le categorie</option></select>
                 <select id="f-brand" onchange="render()" class="p-3 border rounded-lg bg-gray-50"><option value="">Tutti i brand</option></select>
                 <select id="f-shelf" onchange="render()" class="p-3 border rounded-lg bg-gray-50"><option value="">Tutti gli scaffali</option></select>
+                <select id="f-fornitore" onchange="render()" class="p-3 border rounded-lg bg-gray-50"><option value="">Tutti i fornitori</option></select>
             </div>
         </div>
 
@@ -76,8 +77,11 @@
             LOG: 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQLf2HBC2g4q3L-hER7WPpYixWIIqJyV6MAkWm4ENZlQNrLxbroZRP3HBZ7Uzl510OVON8q590_YH_S/pub?gid=135483104&single=true&output=csv'
         };
 
-        // AGGIORNATO: IMG ora a 28
-        const COL = { ASIN:0, SKU:2, QTY:7, SHELF:8, FBA7:13, TEMU7:16, V30:17, V365:18, IMG:28, F_BRAND: 5, E_CAT: 4 };
+        // Aggiunto FORNITORE alla posizione AH (33)
+        const COL = { 
+            ASIN:0, SKU:2, E_CAT: 4, F_BRAND: 5, QTY:7, SHELF:8, 
+            FBA7:13, TEMU7:16, V30:17, V365:18, IMG:28, FORNITORE:33 
+        };
 
         let db = [];
         let currentTab = 'inventory';
@@ -107,6 +111,13 @@
             }
         }
 
+        // Funzione di pulizia numeri (Rimuove la virgola e i punti delle migliaia)
+        function cleanQty(val) {
+            if (!val) return 0;
+            const cleanedStr = val.toString().replace(/[,.]/g, '');
+            return parseInt(cleanedStr, 10) || 0;
+        }
+
         function parseLog(csv) {
             const lines = csv.split('\n').slice(1);
             const map = new Map();
@@ -118,7 +129,7 @@
                 const d = new Date(p[2], p[1]-1, p[0], p[3]||0, p[4]||0);
                 if(now - d < 86400000) {
                     const asin = c[1].trim();
-                    map.set(asin, (map.get(asin) || 0) + parseInt(c[2] || 0));
+                    map.set(asin, (map.get(asin) || 0) + cleanQty(c[2]));
                 }
             });
             return map;
@@ -130,8 +141,8 @@
                 const c = line.split(/,(?=(?:(?:[^"]*"){2})*[^"]*$)/).map(x => x.replace(/"/g,'').trim());
                 if(!c[COL.SKU]) return null;
 
-                const qtyMag = parseFloat(c[COL.QTY]) || 0;
-                const v7 = (parseFloat(c[COL.FBA7]) || 0) + (parseFloat(c[COL.TEMU7]) || 0);
+                const qtyMag = cleanQty(c[COL.QTY]);
+                const v7 = cleanQty(c[COL.FBA7]) + cleanQty(c[COL.TEMU7]);
                 const restock = v7 > 0 ? (qtyMag / v7) : 99;
 
                 return {
@@ -139,15 +150,16 @@
                     asin: c[COL.ASIN],
                     brand: c[COL.F_BRAND] || '',
                     cat: c[COL.E_CAT] || '',
+                    fornitore: c[COL.FORNITORE] || '',
                     img: c[COL.IMG] || '',
                     qty: qtyMag,
                     shelf: c[COL.SHELF] || '',
                     qty24: s24.get(c[COL.ASIN]) || 0,
                     qty7: v7,
-                    qty30: parseFloat(c[COL.V30]) || 0,
-                    qty365: parseFloat(c[COL.V365]) || 0,
+                    qty30: cleanQty(c[COL.V30]),
+                    qty365: cleanQty(c[COL.V365]),
                     restock: restock,
-                    search: (c[COL.SKU] + c[COL.F_BRAND] + c[COL.SHELF]).toLowerCase()
+                    search: (c[COL.SKU] + c[COL.F_BRAND] + c[COL.SHELF] + (c[COL.FORNITORE]||'')).toLowerCase()
                 };
             }).filter(Boolean);
         }
@@ -157,12 +169,14 @@
             const fCat = document.getElementById('f-cat').value;
             const fBrand = document.getElementById('f-brand').value;
             const fShelf = document.getElementById('f-shelf').value;
+            const fForn = document.getElementById('f-fornitore').value;
 
             let filtered = db.filter(p => 
                 p.search.includes(query) &&
                 (!fCat || p.cat === fCat) &&
                 (!fBrand || p.brand === fBrand) &&
-                (!fShelf || p.shelf === fShelf)
+                (!fShelf || p.shelf === fShelf) &&
+                (!fForn || p.fornitore === fForn)
             );
 
             if(currentTab === 'bestsellers') {
@@ -251,10 +265,15 @@
         function updateLoader(txt) { document.getElementById('loader-text').innerText = txt; }
 
         function populateFilters() {
-            const cats = new Set(), brands = new Set(), shelves = new Set();
-            db.forEach(p => { if(p.cat) cats.add(p.cat); if(p.brand) brands.add(p.brand); if(p.shelf) shelves.add(p.shelf); });
+            const cats = new Set(), brands = new Set(), shelves = new Set(), forns = new Set();
+            db.forEach(p => { 
+                if(p.cat) cats.add(p.cat); 
+                if(p.brand) brands.add(p.brand); 
+                if(p.shelf) shelves.add(p.shelf); 
+                if(p.fornitore) forns.add(p.fornitore); 
+            });
             const fill = (id, set) => { const s = document.getElementById(id); [...set].sort().forEach(v => { const o = document.createElement('option'); o.value = v; o.text = v; s.add(o); }); };
-            fill('f-cat', cats); fill('f-brand', brands); fill('f-shelf', shelves);
+            fill('f-cat', cats); fill('f-brand', brands); fill('f-shelf', shelves); fill('f-fornitore', forns);
         }
 
         function openModal(sku) {
