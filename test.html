@@ -155,16 +155,23 @@
         // URL MAGAZZINO (Info finali tramite ASIN)
         const INVENTORY_CSV_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQLf2HBC2g4q3L-hER7WPpYixWIIqJyV6MAkWm4ENZlQNrLxbroZRP3HBZ7Uzl510OVON8q590_YH_S/pub?gid=938359466&single=true&output=csv';
 
-        // MAPPATURE TEMU
+        // MAPPATURE TEMU (COME DALLA BASE STABILE)
         const MAP_OLD = { ORDER_ID: 0, ITEM_TITLE: 7, SKU: 9, QTY: 11, CLIENT: 14, TRACKING: 33 };
         const MAP_NEW = { ORDER_ID: 0, ITEM_TITLE: 7, SKU: 10, QTY: 12, CLIENT: 15, TRACKING: 34 };
 
         // MAPPATURA AMAZON (FISSA)
         const MAP_AMAZON = { ORDER_ID: 11, TRACKING: 12, SKU: 14, ITEM_TITLE: 15, QTY: 17, CLIENT: 1 };
 
-        // SYNC E MAGAZZINO
+        // SYNC: Colonna A = ASIN (0), Colonna B = SKU (1)
         const SYNC_COLS = { ASIN: 0, SKU: 1 };
-        const INVENTORY_COLS = { ASIN: 0, F_BRAND: 5, I_SCAFFALE: 8, AB_IMG_URL: 28 };
+
+        // MAGAZZINO: Colonna A = ASIN (0), il resto uguale
+        const INVENTORY_COLS = { 
+            ASIN: 0, // Chiave di ricerca nel magazzino
+            F_BRAND: 5, 
+            I_SCAFFALE: 8, 
+            AB_IMG_URL: 28 // INDICE CORRETTO COME DA TUA BASE 
+        };
 
         // --- VARIABILI GLOBALI ---
         let searchBox, statusMessage, loadingText, ordersContainer, perfTimer, sidebarContainer, sidebarTbody, mainLayout, countryFilter;
@@ -271,9 +278,14 @@
             const lines = csvText.trim().split('\n'); lines.shift();
             lines.forEach(line => {
                 const cols = parseCSVLine(line);
-                if (cols[0]) inventoryDataMap.set(cols[0].trim(), { 
-                    imageUrl: cols[27] || '', scaffale: cols[8] || 'N/D', brand: cols[5] || 'N/D' 
-                });
+                const asin = cols[INVENTORY_COLS.ASIN];
+                if (asin) {
+                    inventoryDataMap.set(asin.trim(), { 
+                        imageUrl: cols[INVENTORY_COLS.AB_IMG_URL] || '', // RISOLTO: Utilizza la costante corretta (28)
+                        scaffale: cols[INVENTORY_COLS.I_SCAFFALE] || 'N/D', 
+                        brand: cols[INVENTORY_COLS.F_BRAND] || 'N/D' 
+                    });
+                }
             });
         }
 
@@ -283,12 +295,11 @@
                 if (order.tracking && order.tracking !== 'N/D') {
                     let cleanTrack = normalizeTracking(order.tracking);
                     
-                    // --- REGOLE DI TAGLIO APPLICATE ALL'INDICE (INCLUSO 089) ---
+                    // --- REGOLE DI TAGLIO APPLICATE ALL'INDICE ---
                     if (cleanTrack.startsWith('1790') && cleanTrack.length === 18) {
                         cleanTrack = cleanTrack.slice(0, -3);
                     } 
                     else if (cleanTrack.startsWith('089') && cleanTrack.length === 18) {
-                        // Taglia il primo carattere (indice 1) e gli ultimi 3
                         cleanTrack = cleanTrack.slice(1, -3);
                     } 
                     else if (cleanTrack.length > 30) {
@@ -323,25 +334,12 @@
                     } else {
                         if (cols.length < 10) return;
 
+                        // Rilevamento automatico formato come da tua "Base Stabile"
                         let mapping = MAP_OLD;
-                        let trackIdx = 33; // Default colonna AH
-
-                        // FIX: Trova dinamicamente la colonna Tracking escludendo i corrieri (deve contenere un numero)
-                        for (let i = 33; i <= 35; i++) {
-                            if (cols[i]) {
-                                let val = cols[i].trim();
-                                if (val.length > 5 && !val.includes("€") && !val.includes(".") && /\d/.test(val)) {
-                                    trackIdx = i;
-                                    break;
-                                }
-                            }
-                        }
-
-                        // Se il tracking è slittato a 34 o 35, usiamo MAP_NEW e forziamo l'indice esatto
-                        if (trackIdx >= 34) {
-                            mapping = { ...MAP_NEW, TRACKING: trackIdx };
-                        } else {
-                            mapping = { ...MAP_OLD, TRACKING: trackIdx };
+                        const col34 = cols[34] ? cols[34].trim() : "";
+                        // Per escludere Poste Italiane, verifichiamo che la colonna contenga un numero /\d/
+                        if (col34.length > 5 && !col34.includes("€") && !col34.includes(".") && /\d/.test(col34)) {
+                            mapping = MAP_NEW;
                         }
 
                         if (cols.length <= mapping.TRACKING) return;
@@ -352,8 +350,16 @@
                         sku = cols[mapping.SKU] ? cols[mapping.SKU].trim() : 'N/D';
                         qty = parseInt(cols[mapping.QTY]) || 0;
                         cliente = cols[mapping.CLIENT] || 'N/D';
-                        tracking = cols[mapping.TRACKING] ? cols[mapping.TRACKING].trim() : 'N/D';
                         itemTitle = cols[mapping.ITEM_TITLE] || 'N/D';
+                        
+                        tracking = cols[mapping.TRACKING] ? cols[mapping.TRACKING].trim() : 'N/D';
+                        
+                        // FIX SICUREZZA POSTE ITALIANE: 
+                        // Se la colonna tracciamento finisce per essere il nome di un corriere (es. non ha numeri all'interno), 
+                        // il VERO tracking sarà scivolato nella colonna successiva.
+                        if (tracking !== 'N/D' && !/\d/.test(tracking)) {
+                             tracking = cols[mapping.TRACKING + 1] ? cols[mapping.TRACKING + 1].trim() : 'N/D';
+                        }
                     }
 
                     if (!orderId) return;
@@ -403,7 +409,7 @@
             
             let selectedReportIndex = parseInt(countryFilter.value);
 
-            // --- REGOLE DI TAGLIO APPLICATE ALLA RICERCA (INCLUSO 089) ---
+            // --- REGOLE DI TAGLIO SULLA RICERCA ---
             if (cleanInput.startsWith('1790') && cleanInput.length === 18) {
                 cleanInput = cleanInput.slice(0, -3);
             } 
