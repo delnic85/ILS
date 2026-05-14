@@ -335,7 +335,7 @@
                         if (cols.length < 10) return;
 
                         // Rilevamento automatico formato come da tua "Base Stabile"
-                        let mapping = MAP_OLD;
+                        let mapping = MAP_NEW;
                         const col34 = cols[34] ? cols[34].trim() : "";
                         // Per escludere Poste Italiane, verifichiamo che la colonna contenga un numero /\d/
                         if (col34.length > 5 && !col34.includes("€") && !col34.includes(".") && /\d/.test(col34)) {
