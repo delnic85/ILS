@@ -137,7 +137,8 @@
 
     <script>
         // --- CONFIGURAZIONE SCRIPT MODIFICA (PASSO 1) ---
-        const GAS_URL = "https://script.google.com/macros/s/AKfycbzzG5kZYFnnFyHZqH1N54DphQkwRLgq5PTeNrtIW-yQPDwGf9F3jQxssOIWAbbGZ94G/exec";
+        // SOSTITUISCI CON IL TUO NUOVO URL DOPO AVER FATTO IL DEPLOYMENT
+        const GAS_URL = "https://script.google.com/macros/s/AKfycbxP7M-cpB6Ea8nOvoxfxYjIkHQw6EUSHTLY4kOAVg_4JZpAd8BtVwY1CzmxkQIf6GrQ/exec";
 
         // --- CONFIGURAZIONE DATI ---
         const SHEET_ID_ORDINI = "1Qjj9QhNw4unnUV3t2kNP9j3K-usHzw-MCQ3laUrwqos";
@@ -398,7 +399,7 @@
             });
         }
 
-        // --- FUNZIONE AGGIORNATA CON REDIRECT: 'FOLLOW' ---
+        // --- FUNZIONE AGGIORNATA (SENZA BLOCCHI CORS) ---
         async function modificaScaffale(asin, currentScaffale, element) {
             if (asin === 'N/D') {
                 alert("Impossibile modificare: ASIN mancante per questo articolo.");
@@ -416,13 +417,12 @@
                 element.classList.add("pointer-events-none");
 
                 try {
+                    // Rimossi gli "Headers" che causano l'errore "Preflight/CORS" nel browser.
+                    // Aggiunto redirect: "follow" per permettere a Google di completare la richiesta.
                     const response = await fetch(GAS_URL, {
                         method: 'POST',
-                        redirect: 'follow', // <-- LA MODIFICA FONDAMENTALE E' QUESTA!
-                        body: JSON.stringify({ asin: asin, scaffale: nuovoScaffale.trim().toUpperCase() }),
-                        headers: {
-                            'Content-Type': 'text/plain;charset=utf-8',
-                        }
+                        redirect: 'follow', 
+                        body: JSON.stringify({ asin: asin, scaffale: nuovoScaffale.trim().toUpperCase() })
                     });
                     
                     const result = await response.json();
@@ -439,7 +439,7 @@
                     }
                 } catch (error) {
                     console.error(error);
-                    alert("Errore durante il salvataggio. Assicurati di aver impostato 'Chiunque' nell'accesso della Web App su Google. Dettaglio: " + error.message);
+                    alert("Errore durante il salvataggio. Assicurati di aver aggiornato correttamente il link di Google Apps Script (Nuovo Deployment).\n\nDettaglio: " + error.message);
                     element.innerText = testoOriginale; 
                 } finally {
                     element.classList.remove("pointer-events-none");
