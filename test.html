@@ -137,7 +137,6 @@
 
     <script>
         // --- CONFIGURAZIONE SCRIPT MODIFICA (PASSO 1) ---
-        // Sostituisci questo link con l'URL dell'App Web Google Apps Script che hai appena creato
         const GAS_URL = "https://script.google.com/macros/s/AKfycbzzG5kZYFnnFyHZqH1N54DphQkwRLgq5PTeNrtIW-yQPDwGf9F3jQxssOIWAbbGZ94G/exec";
 
         // --- CONFIGURAZIONE DATI ---
@@ -156,11 +155,8 @@
         const SYNC_PRODOTTI_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQLf2HBC2g4q3L-hER7WPpYixWIIqJyV6MAkWm4ENZlQNrLxbroZRP3HBZ7Uzl510OVON8q590_YH_S/pub?gid=940187269&single=true&output=csv';
         const INVENTORY_CSV_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQLf2HBC2g4q3L-hER7WPpYixWIIqJyV6MAkWm4ENZlQNrLxbroZRP3HBZ7Uzl510OVON8q590_YH_S/pub?gid=938359466&single=true&output=csv';
 
-        // MAPPATURE TEMU
         const MAP_OLD = { ORDER_ID: 0, ITEM_TITLE: 7, SKU: 9, QTY: 11, CLIENT: 14, TRACKING: 33 };
         const MAP_NEW = { ORDER_ID: 0, ITEM_TITLE: 7, SKU: 10, QTY: 12, CLIENT: 16, TRACKING: 35 };
-
-        // MAPPATURA AMAZON (FISSA)
         const MAP_AMAZON = { ORDER_ID: 11, TRACKING: 12, SKU: 14, ITEM_TITLE: 15, QTY: 17, CLIENT: 1 };
 
         const SYNC_COLS = { ASIN: 0, SKU: 1 };
@@ -402,18 +398,16 @@
             });
         }
 
-        // --- FUNZIONE PER AGGIORNARE LO SCAFFALE NEL FOGLIO GOOGLE ---
+        // --- FUNZIONE AGGIORNATA CON REDIRECT: 'FOLLOW' ---
         async function modificaScaffale(asin, currentScaffale, element) {
             if (asin === 'N/D') {
                 alert("Impossibile modificare: ASIN mancante per questo articolo.");
                 return;
             }
 
-            // 1. Avviso Sicurezza
             const conferma = confirm(`ATTENZIONE: Stai per modificare la posizione dello Scaffale nel magazzino centrale.\n\nVuoi procedere?`);
             if (!conferma) return;
 
-            // 2. Richiesta Nuovo Dato
             const nuovoScaffale = prompt("Inserisci il NUOVO SCAFFALE per questo prodotto:", currentScaffale);
             
             if (nuovoScaffale !== null && nuovoScaffale.trim() !== "" && nuovoScaffale.trim() !== currentScaffale) {
@@ -422,12 +416,12 @@
                 element.classList.add("pointer-events-none");
 
                 try {
-                    // 3. Chiamata al Google Apps Script
                     const response = await fetch(GAS_URL, {
                         method: 'POST',
+                        redirect: 'follow', // <-- LA MODIFICA FONDAMENTALE E' QUESTA!
                         body: JSON.stringify({ asin: asin, scaffale: nuovoScaffale.trim().toUpperCase() }),
                         headers: {
-                            'Content-Type': 'text/plain;charset=utf-8', // Evita il blocco CORS preflight
+                            'Content-Type': 'text/plain;charset=utf-8',
                         }
                     });
                     
@@ -437,17 +431,16 @@
                         const newVal = nuovoScaffale.trim().toUpperCase();
                         element.innerText = newVal;
                         
-                        // Aggiorna anche la mappa locale così non devi ricaricare la pagina per vederlo
                         if (inventoryDataMap.has(asin)) {
                             inventoryDataMap.get(asin).scaffale = newVal;
                         }
-                        
                     } else {
                         throw new Error(result.error || "Errore sconosciuto durante il salvataggio.");
                     }
                 } catch (error) {
-                    alert("Errore di connessione o salvataggio: " + error.message);
-                    element.innerText = testoOriginale; // Ripristina se c'è un errore
+                    console.error(error);
+                    alert("Errore durante il salvataggio. Assicurati di aver impostato 'Chiunque' nell'accesso della Web App su Google. Dettaglio: " + error.message);
+                    element.innerText = testoOriginale; 
                 } finally {
                     element.classList.remove("pointer-events-none");
                 }
@@ -555,8 +548,6 @@
                     const titleClass = isSingleItem ? "text-2xl md:text-3xl mb-6" : "text-base md:text-lg mb-3";
                     const shelfSizeClass = isSingleItem ? "text-6xl" : "text-5xl";
                     
-                    // --- MODIFICA UI PER SCAFFALE CLICCABILE ---
-                    // Aggiunta la classe 'cursor-pointer' e l'evento 'onclick'
                     return `
                         <div class="bg-white flex flex-col p-4 ${isSingleItem ? 'items-center text-center' : ''}">
                             <p class="font-semibold text-gray-800 line-clamp-2 ${titleClass}" title="${item.articolo}">${item.articolo}</p>
