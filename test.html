@@ -138,7 +138,7 @@
     <script>
         // --- CONFIGURAZIONE SCRIPT MODIFICA (PASSO 1) ---
         // SOSTITUISCI CON IL TUO NUOVO URL DOPO AVER FATTO IL DEPLOYMENT
-        const GAS_URL = "https://script.google.com/macros/s/AKfycbxP7M-cpB6Ea8nOvoxfxYjIkHQw6EUSHTLY4kOAVg_4JZpAd8BtVwY1CzmxkQIf6GrQ/exec";
+        const GAS_URL = "https://script.google.com/macros/s/AKfycbx2-YY947r-OmN2j8ELJULRSQzgY_1Ue-inVu9NQBhnc7KJP1eVhOb4axrmcDwa00U/exec";
 
         // --- CONFIGURAZIONE DATI ---
         const SHEET_ID_ORDINI = "1Qjj9QhNw4unnUV3t2kNP9j3K-usHzw-MCQ3laUrwqos";
@@ -161,8 +161,6 @@
         const MAP_AMAZON = { ORDER_ID: 11, TRACKING: 12, SKU: 14, ITEM_TITLE: 15, QTY: 17, CLIENT: 1 };
 
         const SYNC_COLS = { ASIN: 0, SKU: 1 };
-        
-        // --- AGGIUNTA COLONNA QTY MAG (H = 7) ---
         const INVENTORY_COLS = { ASIN: 0, F_BRAND: 5, H_QTY_MAG: 7, I_SCAFFALE: 8, AB_IMG_URL: 28 };
 
         // --- VARIABILI GLOBALI ---
@@ -275,7 +273,7 @@
                         imageUrl: cols[INVENTORY_COLS.AB_IMG_URL] || '', 
                         scaffale: cols[INVENTORY_COLS.I_SCAFFALE] || 'N/D', 
                         brand: cols[INVENTORY_COLS.F_BRAND] || 'N/D',
-                        qtyMag: cols[INVENTORY_COLS.H_QTY_MAG] || '0' // SALVA QTY MAG
+                        qtyMag: cols[INVENTORY_COLS.H_QTY_MAG] || '0'
                     });
                 }
             });
@@ -384,7 +382,7 @@
                         imageUrl: inv.imageUrl,
                         scaffale: inv.scaffale,
                         brand: inv.brand,
-                        qtyMag: inv.qtyMag // PASSA LA QTY MAG ALL'OGGETTO ITEM
+                        qtyMag: inv.qtyMag 
                     };
 
                     let normTrack = (tracking !== 'N/D' && tracking !== '') ? normalizeTracking(tracking) : null;
@@ -405,6 +403,7 @@
             });
         }
 
+        // --- FUNZIONE MODIFICA SCAFFALE ---
         async function modificaScaffale(asin, currentScaffale, element) {
             if (asin === 'N/D') {
                 alert("Impossibile modificare: ASIN mancante per questo articolo.");
@@ -442,7 +441,54 @@
                     }
                 } catch (error) {
                     console.error(error);
-                    alert("Errore durante il salvataggio. Assicurati di aver aggiornato correttamente il link di Google Apps Script (Nuovo Deployment).\n\nDettaglio: " + error.message);
+                    alert("Errore durante il salvataggio.\n\nDettaglio: " + error.message);
+                    element.innerText = testoOriginale; 
+                } finally {
+                    element.classList.remove("pointer-events-none");
+                }
+            }
+        }
+
+        // --- NUOVA FUNZIONE MODIFICA QTY ---
+        async function modificaQty(asin, currentQty, element) {
+            if (asin === 'N/D') {
+                alert("Impossibile modificare: ASIN mancante per questo articolo.");
+                return;
+            }
+
+            const conferma = confirm(`ATTENZIONE: Stai per modificare la QUANTITÀ RESIDUA nel magazzino centrale.\n\nVuoi procedere?`);
+            if (!conferma) return;
+
+            const nuovaQty = prompt("Inserisci la NUOVA QUANTITÀ per questo prodotto:", currentQty);
+            
+            if (nuovaQty !== null && nuovaQty.trim() !== "" && nuovaQty.trim() !== currentQty) {
+                const testoOriginale = element.innerText;
+                element.innerHTML = `Salvando...`;
+                element.classList.add("pointer-events-none");
+
+                try {
+                    const response = await fetch(GAS_URL, {
+                        method: 'POST',
+                        redirect: 'follow', 
+                        // Invio qtyMag al posto di scaffale
+                        body: JSON.stringify({ asin: asin, qtyMag: nuovaQty.trim() }) 
+                    });
+                    
+                    const result = await response.json();
+                    
+                    if (result.success) {
+                        const newVal = nuovaQty.trim();
+                        element.innerText = "Qty rim: " + newVal;
+                        
+                        if (inventoryDataMap.has(asin)) {
+                            inventoryDataMap.get(asin).qtyMag = newVal;
+                        }
+                    } else {
+                        throw new Error(result.error || "Errore sconosciuto durante il salvataggio.");
+                    }
+                } catch (error) {
+                    console.error(error);
+                    alert("Errore durante il salvataggio.\n\nDettaglio: " + error.message);
                     element.innerText = testoOriginale; 
                 } finally {
                     element.classList.remove("pointer-events-none");
@@ -551,7 +597,7 @@
                     const titleClass = isSingleItem ? "text-2xl md:text-3xl mb-6" : "text-base md:text-lg mb-3";
                     const shelfSizeClass = isSingleItem ? "text-6xl" : "text-5xl";
                     
-                    // --- MODIFICA: AGGIUNTA QTY RIM ---
+                    // --- MODIFICA UI PER QTY RIM CLICCABILE ---
                     return `
                         <div class="bg-white flex flex-col p-4 ${isSingleItem ? 'items-center text-center' : ''}">
                             <p class="font-semibold text-gray-800 line-clamp-2 ${titleClass}" title="${item.articolo}">${item.articolo}</p>
@@ -567,7 +613,7 @@
                                     </div>
                                     <div class="mt-3 flex items-center gap-4">
                                         <div class="w-16 h-16 bg-brand-orange text-white text-3xl font-bold rounded-full flex items-center justify-center shadow-md">${item.qty}</div>
-                                        <span class="text-gray-600 font-medium text-lg">Qty rim: ${item.qtyMag}</span>
+                                        <span class="text-gray-600 font-medium text-lg cursor-pointer hover:opacity-70 transition-opacity" title="Clicca per modificare la quantità" onclick="modificaQty('${item.asin}', '${item.qtyMag}', this)">Qty rim: ${item.qtyMag}</span>
                                     </div>
                                 </div>
                             </div>
