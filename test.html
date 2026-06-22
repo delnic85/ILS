@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="it">
 <head>
@@ -285,11 +284,16 @@
                 if (order.tracking && order.tracking !== 'N/D') {
                     let cleanTrack = normalizeTracking(order.tracking);
                     
+                    // --- REGOLE DI TAGLIO APPLICATE ALL'INDICE (ADATTATE AI NUOVI CODICI 15 CIFRE) ---
                     if (cleanTrack.startsWith('1790') && cleanTrack.length === 18) {
                         cleanTrack = cleanTrack.slice(0, -3);
                     } 
-                    else if (cleanTrack.startsWith('089') && cleanTrack.length === 18) {
-                        cleanTrack = cleanTrack.slice(1, -3);
+                    else if (cleanTrack.startsWith('089')) {
+                        if (cleanTrack.length === 18) {
+                            cleanTrack = cleanTrack.slice(1, -3);
+                        } else if (cleanTrack.length === 15) {
+                            cleanTrack = cleanTrack.slice(1);
+                        }
                     } 
                     else if (cleanTrack.length > 30) {
                         cleanTrack = cleanTrack.slice(-12);
@@ -499,11 +503,16 @@
             
             let selectedReportIndex = parseInt(countryFilter.value);
 
+            // --- REGOLE DI TAGLIO SULLA RICERCA (ADATTATE AI NUOVI CODICI) ---
             if (cleanInput.startsWith('1790') && cleanInput.length === 18) {
                 cleanInput = cleanInput.slice(0, -3);
             } 
-            else if (cleanInput.startsWith('089') && cleanInput.length === 18) {
-                cleanInput = cleanInput.slice(1, -3);
+            else if (cleanInput.startsWith('089')) {
+                if (cleanInput.length === 18) {
+                    cleanInput = cleanInput.slice(1, -3);
+                } else if (cleanInput.length === 15) {
+                    cleanInput = cleanInput.slice(1);
+                }
             } 
             else if (cleanInput.length > 30) {
                 cleanInput = cleanInput.slice(-12);
@@ -594,7 +603,7 @@
                     const titleClass = isSingleItem ? "text-2xl md:text-3xl mb-6" : "text-base md:text-lg mb-3";
                     const shelfSizeClass = isSingleItem ? "text-6xl" : "text-5xl";
                     
-                    // STRUTTURA GRAFICA ORIGINALE RIPRISTINATA
+                    // STRUTTURA GRAFICA ORIGINALE INALTERATA
                     return `
                         <div class="bg-white flex flex-col p-4 ${isSingleItem ? 'items-center text-center' : ''}">
                             <p class="font-semibold text-gray-800 line-clamp-2 ${titleClass}" title="${item.articolo}">${item.articolo}</p>
@@ -647,5 +656,3 @@
     </script>
 </body>
 </html>
-
-```
