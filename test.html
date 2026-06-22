@@ -155,8 +155,11 @@
         const SYNC_PRODOTTI_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQLf2HBC2g4q3L-hER7WPpYixWIIqJyV6MAkWm4ENZlQNrLxbroZRP3HBZ7Uzl510OVON8q590_YH_S/pub?gid=940187269&single=true&output=csv';
         const INVENTORY_CSV_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQLf2HBC2g4q3L-hER7WPpYixWIIqJyV6MAkWm4ENZlQNrLxbroZRP3HBZ7Uzl510OVON8q590_YH_S/pub?gid=938359466&single=true&output=csv';
 
+        // MAPPATURE TEMU (AGGIORNATA IN BASE AL NUOVO CSV - SLITTAMENTO +1)
         const MAP_OLD = { ORDER_ID: 0, ITEM_TITLE: 7, SKU: 9, QTY: 11, CLIENT: 14, TRACKING: 33 };
-        const MAP_NEW = { ORDER_ID: 0, ITEM_TITLE: 7, SKU: 10, QTY: 12, CLIENT: 16, TRACKING: 35 };
+        const MAP_NEW = { ORDER_ID: 0, ITEM_TITLE: 8, SKU: 11, QTY: 13, CLIENT: 17, TRACKING: 36 };
+        
+        // MAPPATURA AMAZON (FISSA)
         const MAP_AMAZON = { ORDER_ID: 11, TRACKING: 12, SKU: 14, ITEM_TITLE: 15, QTY: 17, CLIENT: 1 };
 
         const SYNC_COLS = { ASIN: 0, SKU: 1 };
@@ -284,7 +287,6 @@
                 if (order.tracking && order.tracking !== 'N/D') {
                     let cleanTrack = normalizeTracking(order.tracking);
                     
-                    // --- REGOLE DI TAGLIO APPLICATE ALL'INDICE (ADATTATE AI NUOVI CODICI 15 CIFRE) ---
                     if (cleanTrack.startsWith('1790') && cleanTrack.length === 18) {
                         cleanTrack = cleanTrack.slice(0, -3);
                     } 
@@ -330,7 +332,7 @@
                         let mapping = MAP_OLD;
                         let trackIdx = 33; 
 
-                        for (let i = 33; i <= 37; i++) {
+                        for (let i = 33; i <= 38; i++) {
                             if (cols[i]) {
                                 let val = cols[i].trim();
                                 if (val.length > 5 && !val.includes("€") && !val.includes(".") && /\d/.test(val)) {
@@ -503,7 +505,6 @@
             
             let selectedReportIndex = parseInt(countryFilter.value);
 
-            // --- REGOLE DI TAGLIO SULLA RICERCA (ADATTATE AI NUOVI CODICI) ---
             if (cleanInput.startsWith('1790') && cleanInput.length === 18) {
                 cleanInput = cleanInput.slice(0, -3);
             } 
@@ -603,7 +604,6 @@
                     const titleClass = isSingleItem ? "text-2xl md:text-3xl mb-6" : "text-base md:text-lg mb-3";
                     const shelfSizeClass = isSingleItem ? "text-6xl" : "text-5xl";
                     
-                    // STRUTTURA GRAFICA ORIGINALE INALTERATA
                     return `
                         <div class="bg-white flex flex-col p-4 ${isSingleItem ? 'items-center text-center' : ''}">
                             <p class="font-semibold text-gray-800 line-clamp-2 ${titleClass}" title="${item.articolo}">${item.articolo}</p>
