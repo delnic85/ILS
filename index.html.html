@@ -155,11 +155,8 @@
         const SYNC_PRODOTTI_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQLf2HBC2g4q3L-hER7WPpYixWIIqJyV6MAkWm4ENZlQNrLxbroZRP3HBZ7Uzl510OVON8q590_YH_S/pub?gid=940187269&single=true&output=csv';
         const INVENTORY_CSV_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQLf2HBC2g4q3L-hER7WPpYixWIIqJyV6MAkWm4ENZlQNrLxbroZRP3HBZ7Uzl510OVON8q590_YH_S/pub?gid=938359466&single=true&output=csv';
 
-        // MAPPATURE TEMU (AGGIORNATA IN BASE AL NUOVO CSV - SLITTAMENTO +1)
         const MAP_OLD = { ORDER_ID: 0, ITEM_TITLE: 7, SKU: 9, QTY: 11, CLIENT: 14, TRACKING: 33 };
         const MAP_NEW = { ORDER_ID: 0, ITEM_TITLE: 8, SKU: 11, QTY: 13, CLIENT: 17, TRACKING: 36 };
-        
-        // MAPPATURA AMAZON (FISSA)
         const MAP_AMAZON = { ORDER_ID: 11, TRACKING: 12, SKU: 14, ITEM_TITLE: 15, QTY: 17, CLIENT: 1 };
 
         const SYNC_COLS = { ASIN: 0, SKU: 1 };
@@ -287,7 +284,7 @@
                 if (order.tracking && order.tracking !== 'N/D') {
                     let cleanTrack = normalizeTracking(order.tracking);
                     
-                    if (cleanTrack.startsWith('1790') && cleanTrack.length === 18) {
+                    if (cleanTrack.startsWith('179') && cleanTrack.length === 18) {
                         cleanTrack = cleanTrack.slice(0, -3);
                     } 
                     else if (cleanTrack.startsWith('089')) {
@@ -335,7 +332,8 @@
                         for (let i = 33; i <= 38; i++) {
                             if (cols[i]) {
                                 let val = cols[i].trim();
-                                if (val.length > 5 && !val.includes("€") && !val.includes(".") && /\d/.test(val)) {
+                                // AGGIUNTO: !val.includes("zł") e !val.includes(",") per ignorare i prezzi in zloty polacchi o altre valute.
+                                if (val.length > 5 && !val.includes("€") && !val.includes("zł") && !val.includes(".") && !val.includes(",") && /\d/.test(val)) {
                                     trackIdx = i;
                                     break;
                                 }
@@ -505,7 +503,7 @@
             
             let selectedReportIndex = parseInt(countryFilter.value);
 
-            if (cleanInput.startsWith('1790') && cleanInput.length === 18) {
+            if (cleanInput.startsWith('179') && cleanInput.length === 18) {
                 cleanInput = cleanInput.slice(0, -3);
             } 
             else if (cleanInput.startsWith('089')) {
