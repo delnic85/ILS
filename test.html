@@ -53,16 +53,30 @@
 </head>
 <body class="bg-gray-100 text-brand-gray min-h-screen antialiased overflow-x-hidden relative">
 
+    <!-- OVERLAY SELEZIONE UTENTE (Modale Obbligatoria) -->
+    <div id="user-modal" class="fixed inset-0 bg-gray-900 bg-opacity-90 z-[100] hidden flex-col items-center justify-center backdrop-blur-sm">
+        <div class="bg-white rounded-2xl shadow-2xl p-8 w-11/12 max-w-sm text-center">
+            <h2 class="text-2xl md:text-3xl font-black text-brand-orange mb-6 tracking-tight">Chi sei?</h2>
+            <p class="text-sm text-gray-500 mb-6">Seleziona il tuo nome per sbloccare l'app.</p>
+            <div id="user-buttons" class="flex flex-col gap-3">
+                <!-- I bottoni verranno generati dinamicamente via JS -->
+            </div>
+        </div>
+    </div>
+
     <div id="perf-timer" class="fixed top-2 left-2 bg-black text-white px-3 py-1 rounded text-xs font-mono shadow-md z-50 hidden">
         Tempo: -- ms
     </div>
 
     <div class="container mx-auto w-full p-2 md:p-4"> 
 
-        <header class="relative flex items-center justify-center mb-8">
-            <h1 class="text-3xl md:text-5xl font-bold text-brand-orange tracking-tight">
-                Scannerizza Etichetta
-            </h1>
+        <header class="relative flex items-center justify-start mb-8">
+            <div class="flex items-baseline gap-3">
+                <h1 class="text-3xl md:text-5xl font-bold text-brand-orange tracking-tight">
+                    Scannerizza Etichetta
+                </h1>
+                <span id="current-user-display" class="text-xl md:text-2xl text-black font-semibold hidden"></span>
+            </div>
 
             <a href="https://delnic85.github.io/ILS/magazzino.html" 
                class="absolute right-0 top-1/2 -translate-y-1/2 flex items-center gap-1 text-brand-gray hover:text-brand-orange font-semibold transition-colors duration-200 group">
@@ -73,10 +87,11 @@
             </a>
         </header>
 
+        <!-- BARRA STRUMENTI: Filtro Nazione | Input Tracking | Dropdown Utente -->
         <div class="bg-white rounded-2xl shadow-lg p-4 mb-6">
-            <div class="flex flex-col md:flex-row gap-4">
+            <div class="flex flex-col md:flex-row gap-4 items-center justify-between">
                 
-                <div class="md:w-1/3 lg:w-1/4">
+                <div class="w-full md:w-1/3">
                     <label for="country-filter" class="sr-only">Filtra per Nazione</label>
                     <div class="relative">
                         <select id="country-filter" 
@@ -89,11 +104,24 @@
                     </div>
                 </div>
 
-                <div class="md:w-2/3 lg:w-3/4">
+                <div class="w-full md:w-[30%]">
                     <label for="search-box" class="sr-only">Cerca Tracking</label>
-                    <input type="text" id="search-box" 
-                           placeholder="Inserisci il tracking..." 
-                           class="w-full p-4 border border-gray-300 rounded-lg text-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-brand-orange focus:border-transparent">
+                    <input type="text" id="search-box" disabled
+                           placeholder="Attesa selezione utente..." 
+                           class="w-full p-4 border border-gray-300 rounded-lg text-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-brand-orange focus:border-transparent disabled:bg-gray-100 disabled:cursor-not-allowed">
+                </div>
+
+                <div class="w-full md:w-1/3">
+                    <label for="user-filter" class="sr-only">Cambia Utente</label>
+                    <div class="relative">
+                        <select id="user-filter" 
+                                class="w-full p-4 border border-gray-300 rounded-lg text-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-brand-orange focus:border-transparent bg-gray-50 appearance-none cursor-pointer font-medium text-gray-700">
+                            <option value="" disabled selected>Cambia Utente...</option>
+                        </select>
+                        <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-4 text-gray-500">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+                        </div>
+                    </div>
                 </div>
 
             </div>
@@ -107,29 +135,9 @@
                 </div>
             </div>
 
-            <div id="main-layout" class="flex flex-col lg:flex-row gap-6 hidden">
-                <div id="orders-container" class="flex-1"></div>
-                <div id="sidebar-container" class="w-full lg:w-1/4 hidden">
-                    <div class="bg-white rounded-2xl shadow-lg overflow-hidden sticky top-4">
-                        <div class="bg-brand-gray text-white p-3">
-                            <h3 class="font-bold text-center uppercase tracking-wider text-sm">Totali in questo Report</h3>
-                        </div>
-                        <div class="p-4">
-                            <table class="w-full text-sm">
-                                <thead>
-                                    <tr class="border-b border-gray-200">
-                                        <th class="text-left py-2 text-brand-orange">SKU GLS</th>
-                                        <th class="text-right py-2 text-brand-gray">Venduti</th>
-                                    </tr>
-                                </thead>
-                                <tbody id="sidebar-tbody"></tbody>
-                            </table>
-                            <p class="text-xs text-gray-400 mt-4 text-center italic">
-                                *Somma totale per questi SKU nel report corrente.
-                            </p>
-                        </div>
-                    </div>
-                </div>
+            <!-- CONTENITORE ORDINI (Modificato per rimuovere la sidebar) -->
+            <div id="main-layout" class="w-full hidden">
+                <div id="orders-container" class="w-full"></div>
             </div>
         </div>
 
@@ -162,13 +170,18 @@
         const SYNC_COLS = { ASIN: 0, SKU: 1 };
         const INVENTORY_COLS = { ASIN: 0, F_BRAND: 5, H_QTY_MAG: 7, I_SCAFFALE: 8, AB_IMG_URL: 28 };
 
+        // --- CONFIGURAZIONE UTENTI ---
+        const LISTA_UTENTI = ["Alessandro", "Paolo", "Gianni", "Aldo", "Alessio", "Martina"];
+
         // --- VARIABILI GLOBALI ---
-        let searchBox, statusMessage, loadingText, ordersContainer, perfTimer, sidebarContainer, sidebarTbody, mainLayout, countryFilter;
+        let searchBox, statusMessage, loadingText, ordersContainer, perfTimer, mainLayout, countryFilter;
+        let userModal, userButtonsContainer, currentUserDisplay, userFilter;
+        
+        let currentUser = null;
         let allGroupedOrders = [];
         let inventoryDataMap = new Map(); 
         let skuToAsinMap = new Map();     
         let trackingIndex = new Map();
-        let skuCountsByReport = [];
         let searchStartTime = 0;
 
         document.addEventListener('DOMContentLoaded', () => {
@@ -178,10 +191,14 @@
             loadingText = document.getElementById('loading-text');
             ordersContainer = document.getElementById('orders-container');
             perfTimer = document.getElementById('perf-timer');
-            sidebarContainer = document.getElementById('sidebar-container');
-            sidebarTbody = document.getElementById('sidebar-tbody');
             mainLayout = document.getElementById('main-layout');
+            
+            userModal = document.getElementById('user-modal');
+            userButtonsContainer = document.getElementById('user-buttons');
+            currentUserDisplay = document.getElementById('current-user-display');
+            userFilter = document.getElementById('user-filter');
 
+            // Inizializza filtro stati
             NOMI_SCHEDE.forEach((nome, index) => {
                 let option = document.createElement('option');
                 option.value = index;
@@ -189,8 +206,28 @@
                 countryFilter.appendChild(option);
             });
 
+            // Inizializza modale utenti e dropdown
+            LISTA_UTENTI.forEach(nome => {
+                // Bottone per la modale
+                let btn = document.createElement('button');
+                btn.className = "w-full py-4 bg-gray-100 hover:bg-brand-orange hover:text-white text-gray-800 font-bold rounded-xl transition-colors text-xl shadow-sm";
+                btn.textContent = nome;
+                btn.onclick = () => impostaUtente(nome);
+                userButtonsContainer.appendChild(btn);
+
+                // Opzione per il dropdown
+                let opt = document.createElement('option');
+                opt.value = nome;
+                opt.textContent = nome;
+                userFilter.appendChild(opt);
+            });
+
             searchBox.addEventListener('input', () => { renderOrders(); });
             countryFilter.addEventListener('change', () => { renderOrders(); });
+            
+            userFilter.addEventListener('change', (e) => {
+                impostaUtente(e.target.value);
+            });
 
             searchBox.addEventListener('keydown', (event) => {
                 if (event.key === 'Enter' || event.keyCode === 13) {
@@ -203,6 +240,24 @@
 
             loadAllData();
         });
+
+        function impostaUtente(nome) {
+            currentUser = nome;
+            
+            // Chiude la modale
+            userModal.classList.add('hidden');
+            userModal.classList.remove('flex');
+            
+            // Aggiorna l'header
+            currentUserDisplay.textContent = "- " + nome;
+            currentUserDisplay.classList.remove('hidden');
+            
+            // Aggiorna la select e sblocca la ricerca
+            userFilter.value = nome;
+            searchBox.disabled = false;
+            searchBox.placeholder = "Inserisci il tracking...";
+            searchBox.focus();
+        }
 
         function normalizeTracking(code) {
             if (!code) return "";
@@ -221,7 +276,6 @@
 
                 const allOrdersMap = new Map();
                 let ordersLoadedCount = 0;
-                skuCountsByReport = new Array(NOMI_SCHEDE.length).fill(null);
 
                 for (let i = 0; i < NOMI_SCHEDE.length; i++) {
                     const nome = NOMI_SCHEDE[i];
@@ -230,7 +284,6 @@
                     try {
                         const response = await fetch(ORDER_SHEET_URLS[i]);
                         if (response.ok) {
-                            skuCountsByReport[i] = {}; 
                             try {
                                 processOrdersCsv(await response.text(), allOrdersMap, i);
                                 ordersLoadedCount++;
@@ -247,8 +300,17 @@
 
                 allGroupedOrders = Array.from(allOrdersMap.values());
                 buildTrackingIndex();
-                renderOrders();
+                
+                // Nascondi caricamento e mostra Modale Utente
                 statusMessage.classList.add('hidden');
+                
+                if (!currentUser) {
+                    userModal.classList.remove('hidden');
+                    userModal.classList.add('flex');
+                } else {
+                    renderOrders();
+                }
+
             } catch (error) {
                 console.error(error);
                 statusMessage.innerHTML = `<div class="text-red-600 p-4">Errore Critico: ${error.message}</div>`;
@@ -306,7 +368,6 @@
         function processOrdersCsv(csvText, ordersMap, reportIndex) {
             const lines = csvText.trim().split('\n');
             lines.shift(); 
-            let currentReportCounts = skuCountsByReport[reportIndex];
             
             const isAmazon = NOMI_SCHEDE[reportIndex] === "AMAZON";
 
@@ -332,7 +393,6 @@
                         for (let i = 33; i <= 38; i++) {
                             if (cols[i]) {
                                 let val = cols[i].trim();
-                                // AGGIUNTO: !val.includes("zł") e !val.includes(",") per ignorare i prezzi in zloty polacchi o altre valute.
                                 if (val.length > 5 && !val.includes("€") && !val.includes("zł") && !val.includes(".") && !val.includes(",") && /\d/.test(val)) {
                                     trackIdx = i;
                                     break;
@@ -366,11 +426,6 @@
                     }
 
                     if (!orderId) return;
-
-                    if (sku !== 'N/D') {
-                        if (!currentReportCounts[sku]) currentReportCounts[sku] = 0;
-                        currentReportCounts[sku] += qty;
-                    }
 
                     const asin = skuToAsinMap.get(sku);
                     let inv = { imageUrl: '', scaffale: 'N/D', brand: 'N/D', qtyMag: 'N/D' };
@@ -498,6 +553,8 @@
         }
 
         function renderOrders() {
+            if (!currentUser) return; // Sicurezza extra
+
             let rawInput = searchBox.value.trim();
             let cleanInput = normalizeTracking(rawInput);
             
@@ -518,7 +575,6 @@
             }
             
             let searchTerm = cleanInput.toLowerCase();
-
             let filteredOrders = [];
 
             if (trackingIndex.has(searchTerm)) {
@@ -536,10 +592,8 @@
             }
 
             ordersContainer.innerHTML = '';
-            sidebarTbody.innerHTML = ''; 
             statusMessage.classList.add('hidden');
             mainLayout.classList.add('hidden'); 
-            sidebarContainer.classList.add('hidden'); 
 
             if (filteredOrders.length === 0) {
                 if (searchTerm.length > 0) {
@@ -555,31 +609,9 @@
 
             mainLayout.classList.remove('hidden');
 
-            const mainOrder = filteredOrders[0];
-            const reportIdx = mainOrder.reportIndex;
-            
-            if (reportIdx !== undefined && skuCountsByReport[reportIdx]) {
-                const reportStats = skuCountsByReport[reportIdx];
-                let sidebarHtml = '';
-                const uniqueSkusInOrder = new Set(mainOrder.items.map(i => i.sku));
-
-                uniqueSkusInOrder.forEach(sku => {
-                    if(sku !== 'N/D') {
-                        const totalSold = reportStats[sku] || 0;
-                        sidebarHtml += `
-                            <tr class="border-b border-gray-100 last:border-0">
-                                <td class="py-2 text-brand-orange font-bold text-xs md:text-sm">${sku}</td>
-                                <td class="py-2 text-right font-bold text-gray-700 text-lg">${totalSold}</td>
-                            </tr>`;
-                    }
-                });
-                sidebarTbody.innerHTML = sidebarHtml;
-                sidebarContainer.classList.remove('hidden'); 
-            }
-
             filteredOrders.forEach(order => {
                 const orderCard = document.createElement('div');
-                orderCard.className = 'bg-white rounded-2xl shadow-lg overflow-hidden mb-6';
+                orderCard.className = 'bg-white rounded-2xl shadow-lg overflow-hidden mb-6 w-full';
                 
                 const nazioneNome = NOMI_SCHEDE[order.reportIndex] || '';
 
