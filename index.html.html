@@ -145,7 +145,7 @@
         const NOMI_SCHEDE = [
             "GERMANIA", "FRANCIA", "ITALIA", "PAESI BASSI", "SPAGNA", 
             "BELGIO", "AUSTRIA", "REP. CECA", "UNGHERIA", "PORTOGALLO", 
-            "DANIMARCA", "POLONIA", "AMAZON"
+            "DANIMARCA", "POLONIA", "AMAZON", "TIKTOK"
         ];
 
         const ORDER_SHEET_URLS = NOMI_SCHEDE.map(nome => 
@@ -158,6 +158,7 @@
         const MAP_OLD = { ORDER_ID: 0, ITEM_TITLE: 7, SKU: 9, QTY: 11, CLIENT: 14, TRACKING: 33 };
         const MAP_NEW = { ORDER_ID: 0, ITEM_TITLE: 8, SKU: 11, QTY: 13, CLIENT: 17, TRACKING: 36 };
         const MAP_AMAZON = { ORDER_ID: 11, TRACKING: 12, SKU: 14, ITEM_TITLE: 15, QTY: 17, CLIENT: 1 };
+        const MAP_TIKTOK = { ORDER_ID: 0, ITEM_TITLE: 7, SKU: 6, QTY: 9, CLIENT: 37, TRACKING: 33 };
 
         const SYNC_COLS = { ASIN: 0, SKU: 1 };
         const INVENTORY_COLS = { ASIN: 0, F_BRAND: 5, H_QTY_MAG: 7, I_SCAFFALE: 8, AB_IMG_URL: 28 };
@@ -309,6 +310,7 @@
             let currentReportCounts = skuCountsByReport[reportIndex];
             
             const isAmazon = NOMI_SCHEDE[reportIndex] === "AMAZON";
+            const isTiktok = NOMI_SCHEDE[reportIndex] === "TIKTOK";
 
             lines.forEach(line => {
                 try {
@@ -323,6 +325,14 @@
                         cliente = cols[MAP_AMAZON.CLIENT] || 'N/D';
                         tracking = cols[MAP_AMAZON.TRACKING] ? cols[MAP_AMAZON.TRACKING].trim() : 'N/D';
                         itemTitle = cols[MAP_AMAZON.ITEM_TITLE] || 'N/D';
+                    } else if (isTiktok) {
+                        if (cols.length <= MAP_TIKTOK.TRACKING) return;
+                        orderId = cols[MAP_TIKTOK.ORDER_ID];
+                        sku = cols[MAP_TIKTOK.SKU] ? cols[MAP_TIKTOK.SKU].trim() : 'N/D';
+                        qty = parseInt(cols[MAP_TIKTOK.QTY]) || 0;
+                        cliente = cols[MAP_TIKTOK.CLIENT] || 'N/D';
+                        tracking = cols[MAP_TIKTOK.TRACKING] ? cols[MAP_TIKTOK.TRACKING].trim() : 'N/D';
+                        itemTitle = cols[MAP_TIKTOK.ITEM_TITLE] || 'N/D';
                     } else {
                         if (cols.length < 10) return;
 
@@ -332,7 +342,6 @@
                         for (let i = 33; i <= 38; i++) {
                             if (cols[i]) {
                                 let val = cols[i].trim();
-                                // AGGIUNTO: !val.includes("zł") e !val.includes(",") per ignorare i prezzi in zloty polacchi o altre valute.
                                 if (val.length > 5 && !val.includes("€") && !val.includes("zł") && !val.includes(".") && !val.includes(",") && /\d/.test(val)) {
                                     trackIdx = i;
                                     break;
