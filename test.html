@@ -231,6 +231,21 @@
             });
 
             searchBox.focus();
+            // Rimette il fuoco sul campo quando torni sulla scheda o sulla finestra
+            const rifocalizza = () => {
+            if (document.visibilityState === 'visible') setTimeout(() => searchBox.focus(), 50);
+            };
+            document.addEventListener('visibilitychange', rifocalizza);
+            window.addEventListener('focus', rifocalizza);
+
+            // Se lo scanner "spara" mentre il fuoco è altrove, dirotta i tasti nel campo
+            document.addEventListener('keydown', (e) => {
+                if (document.activeElement === searchBox) return;
+                if (e.ctrlKey || e.metaKey || e.altKey) return;
+                if (e.key.length !== 1) return;                 // solo caratteri stampabili
+                searchBox.focus();
+                searchBox.value = '';                           // nuova scansione, campo pulito
+            });
             loadAllData();
         });
 
