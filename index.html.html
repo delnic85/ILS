@@ -161,9 +161,37 @@
             "DANIMARCA", "POLONIA", "AMAZON", "TIKTOK"
         ];
 
-        const ORDER_SHEET_URLS = NOMI_SCHEDE.map(nome =>
-            `https://docs.google.com/spreadsheets/d/${SHEET_ID_ORDINI}/gviz/tq?tqx=out:csv&sheet=${encodeURIComponent(nome)}`
-        );
+        // Foglio ORDINI TEMU pubblicato sul web (File → Condividi → Pubblica sul web, CSV).
+        // Il CSV pubblicato restituisce il valore VISUALIZZATO di ogni cella: i tracking
+        // con lo zero iniziale arrivano intatti anche se la colonna contiene numeri.
+        // L'endpoint gviz/tq invece assegna un tipo a ogni colonna in base alla
+        // maggioranza dei valori e svuota le celle che non lo rispettano: quando
+        // in ITALIA i GLS numerici hanno superato i BRT testuali, tutti gli 089… sparivano.
+        const ORDINI_PUB_BASE = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vSIRX2of-3t_4Z9U0X8Vy7yBHkaDXkpxqHnb3rP1GrFegKACJMRzKdQQrF2Yx3ZsnsyjZ78xHtS9SqO/pub';
+
+        const ORDINI_GID = {
+            "GERMANIA":    "0",
+            "FRANCIA":     "678087424",
+            "ITALIA":      "698965104",
+            "PAESI BASSI": "1073596300",
+            "SPAGNA":      "204641117",
+            "BELGIO":      "230562370",
+            "AUSTRIA":     "1668688473",
+            "REP. CECA":   "1557315334",
+            "UNGHERIA":    "181417313",
+            "PORTOGALLO":  "1173456993",
+            "DANIMARCA":   null,           // gid non ancora noto: usa gviz come ripiego
+            "POLONIA":     "778059903",
+            "AMAZON":      "1327242599",
+            "TIKTOK":      "199992153"
+        };
+
+        const ORDER_SHEET_URLS = NOMI_SCHEDE.map(nome => {
+            const gid = ORDINI_GID[nome];
+            if (gid != null) return `${ORDINI_PUB_BASE}?gid=${gid}&single=true&output=csv`;
+            console.warn(`[SCAN] ${nome}: gid mancante, uso gviz (i tracking con zero iniziale potrebbero mancare)`);
+            return `https://docs.google.com/spreadsheets/d/${SHEET_ID_ORDINI}/gviz/tq?tqx=out:csv&sheet=${encodeURIComponent(nome)}`;
+        });
 
         const SYNC_PRODOTTI_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQLf2HBC2g4q3L-hER7WPpYixWIIqJyV6MAkWm4ENZlQNrLxbroZRP3HBZ7Uzl510OVON8q590_YH_S/pub?gid=940187269&single=true&output=csv';
         const INVENTORY_CSV_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQLf2HBC2g4q3L-hER7WPpYixWIIqJyV6MAkWm4ENZlQNrLxbroZRP3HBZ7Uzl510OVON8q590_YH_S/pub?gid=938359466&single=true&output=csv';
@@ -231,9 +259,10 @@
             });
 
             searchBox.focus();
+
             // Rimette il fuoco sul campo quando torni sulla scheda o sulla finestra
             const rifocalizza = () => {
-            if (document.visibilityState === 'visible') setTimeout(() => searchBox.focus(), 50);
+                if (document.visibilityState === 'visible') setTimeout(() => searchBox.focus(), 50);
             };
             document.addEventListener('visibilitychange', rifocalizza);
             window.addEventListener('focus', rifocalizza);
@@ -246,6 +275,7 @@
                 searchBox.focus();
                 searchBox.value = '';                           // nuova scansione, campo pulito
             });
+
             loadAllData();
         });
 
