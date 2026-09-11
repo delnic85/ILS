@@ -180,7 +180,7 @@
             "REP. CECA":   "1557315334",
             "UNGHERIA":    "181417313",
             "PORTOGALLO":  "1173456993",
-            "DANIMARCA":   null,           // gid non ancora noto: usa gviz come ripiego
+            "DANIMARCA":   "32943144",
             "POLONIA":     "778059903",
             "AMAZON":      "1327242599",
             "TIKTOK":      "199992153"
@@ -766,6 +766,7 @@
             if (searchStartTime > 0) {
                 perfTimer.textContent = `Tempo: ${(performance.now() - searchStartTime).toFixed(0)} ms`;
                 perfTimer.classList.remove('hidden');
+                searchStartTime = 0;   // misura solo la ricerca appena fatta, non i render successivi
             }
         }
     </script>
