@@ -156,10 +156,10 @@
         const SHEET_ID_ORDINI = "1Qjj9QhNw4unnUV3t2kNP9j3K-usHzw-MCQ3laUrwqos";
 
         const NOMI_SCHEDE = [
-            "GERMANIA", "FRANCIA", "ITALIA", "PAESI BASSI", "SPAGNA",
-            "BELGIO", "AUSTRIA", "REP. CECA", "UNGHERIA", "PORTOGALLO",
-            "DANIMARCA", "POLONIA", "AMAZON", "TIKTOK"
-        ];
+    "GERMANIA", "FRANCIA", "ITALIA", "PAESI BASSI", "SPAGNA",
+    "BELGIO", "AUSTRIA", "REP. CECA", "UNGHERIA", "PORTOGALLO",
+    "DANIMARCA", "POLONIA", "AMAZON", "TIKTOK", "SHOPIFY"
+    ];
 
         // Foglio ORDINI TEMU pubblicato sul web (File → Condividi → Pubblica sul web, CSV).
         // Il CSV pubblicato restituisce il valore VISUALIZZATO di ogni cella: i tracking
@@ -183,7 +183,8 @@
             "DANIMARCA":   "32943144",
             "POLONIA":     "778059903",
             "AMAZON":      "1327242599",
-            "TIKTOK":      "199992153"
+            "TIKTOK":      "199992153",
+            "SHOPIFY":     "1018842456"
         };
 
         const ORDER_SHEET_URLS = NOMI_SCHEDE.map(nome => {
@@ -202,6 +203,7 @@
         const MAP_NEW = { ORDER_ID: 0, ITEM_TITLE: 8, SKU: 11, QTY: 13, CLIENT: 17, TRACKING: 36 };
         const MAP_AMAZON = { ORDER_ID: 0, ITEM_TITLE: 8, SKU: 11, QTY: 13, CLIENT: 17, TRACKING: 36 };
         const MAP_TIKTOK = { ORDER_ID: 0, ITEM_TITLE: 7, SKU: 6, QTY: 9, CLIENT: 37, TRACKING: 33 };
+        const MAP_SHOPIFY = { ORDER_ID: 0, ITEM_TITLE: 8, SKU: 11, QTY: 13, CLIENT: 17, TRACKING: 36 };
 
         const INVENTORY_COLS = { ASIN: 0, F_BRAND: 5, H_QTY_MAG: 7, I_SCAFFALE: 8, AB_IMG_URL: 28 };
 
@@ -417,7 +419,7 @@
             const nome = NOMI_SCHEDE[reportIndex];
             if (nome === 'AMAZON') return { ...MAP_AMAZON, origine: 'fisso AMAZON' };
             if (nome === 'TIKTOK') return { ...MAP_TIKTOK, origine: 'fisso TIKTOK' };
-
+            if (nome === 'SHOPIFY') return { ...MAP_SHOPIFY, origine: 'fisso SHOPIFY' };
             const base = header.length >= 50 ? MAP_NEW : MAP_OLD;
             const h = header.map(x => (x || '').toString().trim().toLowerCase());
             let trovati = 0;
