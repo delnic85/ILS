@@ -10,6 +10,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link rel="preconnect" href="https://docs.google.com" crossorigin>
+    <link rel="preconnect" href="https://script.google.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;900&display=swap" rel="stylesheet">
 
     <style>
@@ -38,8 +39,18 @@
             100% { transform: rotate(360deg); }
         }
 
+        /* Lampeggio dell'esito: si nota con la coda dell'occhio mentre si imballa */
+        @keyframes lampo {
+            0%   { transform: scale(1.03); filter: brightness(1.25); }
+            100% { transform: scale(1);    filter: brightness(1); }
+        }
+        .lampo { animation: lampo .45s ease-out; }
+
+        .gira { animation: rotation 1s linear infinite; display: inline-block; }
+
         @media (prefers-reduced-motion: reduce) {
             .loader { animation-duration: 3s; }
+            .lampo { animation: none; }
         }
     </style>
 
@@ -58,13 +69,13 @@
 </head>
 <body class="bg-gray-100 text-brand-gray min-h-screen antialiased overflow-x-hidden relative">
 
-    <div id="perf-timer" class="fixed top-2 left-2 bg-black text-white px-3 py-1 rounded text-xs font-mono shadow-md z-50 hidden">
+    <div id="perf-timer" class="fixed bottom-2 right-2 bg-black text-white px-3 py-1 rounded text-xs font-mono shadow-md z-30 hidden">
         Tempo: -- ms
     </div>
 
     <div class="container mx-auto w-full p-2 md:p-4">
 
-        <header class="relative flex items-center justify-center mb-8">
+        <header class="relative flex items-center justify-center mb-6">
             <h1 class="text-3xl md:text-5xl font-bold text-brand-orange tracking-tight">
                 Scannerizza Etichetta
             </h1>
@@ -78,37 +89,59 @@
             </a>
         </header>
 
-        <div class="bg-white rounded-2xl shadow-lg p-4 mb-6">
-            <div class="flex flex-col md:flex-row gap-4">
+        <div class="grid grid-cols-1 lg:grid-cols-[340px_minmax(0,1fr)] gap-4 mb-6 items-start">
 
-                <div class="md:w-1/3 lg:w-1/4">
-                    <label for="country-filter" class="sr-only">Filtra per Nazione</label>
-                    <div class="relative">
-                        <select id="country-filter"
-                                class="w-full p-4 border border-gray-300 rounded-lg text-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-brand-orange focus:border-transparent bg-gray-50 appearance-none cursor-pointer font-medium text-gray-700">
-                            <option value="-1">Tutti gli stati</option>
-                        </select>
-                        <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-4 text-gray-500">
-                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+            <!-- PANNELLO "DA SPARARE" -->
+            <aside id="pannello" class="bg-white rounded-2xl shadow-lg overflow-hidden">
+                <div class="bg-brand-gray text-white px-4 py-2 flex items-center justify-between">
+                    <h2 class="font-bold uppercase tracking-wider text-sm">Da sparare</h2>
+                    <div class="flex items-center gap-3">
+                        <button id="btn-suoni" type="button" class="text-lg leading-none opacity-90 hover:opacity-100" title="Suoni attivi / spenti">🔊</button>
+                        <button id="btn-aggiorna" type="button" class="text-xl leading-none opacity-90 hover:opacity-100" title="Ricarica report e scansioni"><span id="ico-aggiorna">↻</span></button>
+                    </div>
+                </div>
+                <div class="p-4">
+                    <div class="flex items-end gap-3">
+                        <span id="cnt-mancanti" class="text-6xl font-black text-brand-orange leading-none tabular-nums">…</span>
+                        <span id="cnt-label" class="text-sm text-gray-500 mb-1 font-medium">caricamento…</span>
+                    </div>
+                    <div class="mt-4 h-4 bg-gray-200 rounded-full overflow-hidden">
+                        <div id="cnt-barra" class="h-full bg-brand-orange transition-all duration-500" style="width:0%"></div>
+                    </div>
+                    <div class="mt-2 flex justify-between items-baseline text-sm">
+                        <span id="cnt-fatti" class="text-gray-600 font-medium"></span>
+                        <span id="cnt-perc" class="font-bold text-gray-800 tabular-nums"></span>
+                    </div>
+                    <div id="cnt-canali" class="mt-3 flex flex-wrap gap-1.5"></div>
+                    <button id="btn-mancanti" type="button"
+                            class="mt-4 w-full py-2.5 rounded-lg font-semibold border-2 border-brand-orange text-brand-orange hover:bg-brand-orange hover:text-white transition-colors disabled:opacity-40 disabled:pointer-events-none">
+                        Vedi mancanti
+                    </button>
+                    <div class="mt-3 flex items-center justify-between gap-2 text-xs text-gray-400">
+                        <button id="btn-postazione" type="button" class="hover:text-brand-orange truncate" title="Cambia il nome di questa postazione">
+                            Postazione: <span id="nome-postazione" class="font-semibold"></span> ✎
+                        </button>
+                        <span id="cnt-stato" class="whitespace-nowrap"></span>
+                    </div>
+                    <div id="cnt-avviso" class="hidden mt-2 text-xs text-red-600 font-medium"></div>
+                </div>
+            </aside>
+
+            <!-- RICERCA + ESITO -->
+            <div class="bg-white rounded-2xl shadow-lg p-4">
+                <label for="search-box" class="sr-only">Cerca Tracking</label>
+                <input type="text" id="search-box" autocomplete="off" autocapitalize="off" spellcheck="false"
+                       placeholder="Spara l'etichetta o inserisci il tracking..."
+                       class="w-full p-4 border border-gray-300 rounded-lg text-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-brand-orange focus:border-transparent">
+                <div id="load-progress" class="mt-3 hidden">
+                    <div class="flex items-center gap-3">
+                        <div class="flex-1 h-1.5 bg-gray-200 rounded-full overflow-hidden">
+                            <div id="load-bar" class="h-full bg-brand-orange transition-all duration-200" style="width:0%"></div>
                         </div>
+                        <span id="load-label" class="text-xs text-gray-500 font-medium whitespace-nowrap"></span>
                     </div>
                 </div>
-
-                <div class="md:w-2/3 lg:w-3/4">
-                    <label for="search-box" class="sr-only">Cerca Tracking</label>
-                    <input type="text" id="search-box" autocomplete="off" autocapitalize="off" spellcheck="false"
-                           placeholder="Inserisci il tracking..."
-                           class="w-full p-4 border border-gray-300 rounded-lg text-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-brand-orange focus:border-transparent">
-                </div>
-
-            </div>
-            <div id="load-progress" class="mt-3 hidden">
-                <div class="flex items-center gap-3">
-                    <div class="flex-1 h-1.5 bg-gray-200 rounded-full overflow-hidden">
-                        <div id="load-bar" class="h-full bg-brand-orange transition-all duration-200" style="width:0%"></div>
-                    </div>
-                    <span id="load-label" class="text-xs text-gray-500 font-medium whitespace-nowrap"></span>
-                </div>
+                <div id="esito" class="hidden mt-3 rounded-xl px-5 py-4 text-xl md:text-2xl font-bold"></div>
             </div>
         </div>
 
@@ -120,36 +153,28 @@
                 </div>
             </div>
 
-            <div id="main-layout" class="flex flex-col lg:flex-row gap-6 hidden">
-                <div id="orders-container" class="flex-1"></div>
-                <div id="sidebar-container" class="w-full lg:w-1/4 hidden">
-                    <div class="bg-white rounded-2xl shadow-lg overflow-hidden sticky top-4">
-                        <div class="bg-brand-gray text-white p-3">
-                            <h3 class="font-bold text-center uppercase tracking-wider text-sm">Totali in questo Report</h3>
-                        </div>
-                        <div class="p-4">
-                            <table class="w-full text-sm">
-                                <thead>
-                                    <tr class="border-b border-gray-200">
-                                        <th class="text-left py-2 text-brand-orange">SKU GLS</th>
-                                        <th class="text-right py-2 text-brand-gray">Venduti</th>
-                                    </tr>
-                                </thead>
-                                <tbody id="sidebar-tbody"></tbody>
-                            </table>
-                            <p class="text-xs text-gray-400 mt-4 text-center italic">
-                                *Somma totale per questi SKU nel report corrente.
-                            </p>
-                        </div>
-                    </div>
-                </div>
+            <div id="main-layout" class="hidden">
+                <div id="orders-container"></div>
             </div>
         </div>
 
     </div>
 
+    <!-- FINESTRA "MANCANTI" -->
+    <div id="modale-mancanti" class="fixed inset-0 z-40 hidden" role="dialog" aria-modal="true" aria-labelledby="mm-titolo">
+        <div class="absolute inset-0 bg-black/40" data-chiudi="1"></div>
+        <div class="relative mx-auto my-6 w-[min(1100px,95vw)] max-h-[90vh] bg-white rounded-2xl shadow-2xl flex flex-col overflow-hidden">
+            <div class="bg-brand-gray text-white px-5 py-3 flex items-center justify-between">
+                <h3 id="mm-titolo" class="font-bold uppercase tracking-wider">Etichette da sparare <span id="mm-totale" class="ml-1 text-brand-orange"></span></h3>
+                <button type="button" data-chiudi="1" class="text-3xl leading-none hover:opacity-80" aria-label="Chiudi">×</button>
+            </div>
+            <div id="mm-filtri" class="px-5 py-3 border-b border-gray-200 flex flex-wrap gap-2"></div>
+            <div id="mm-lista" class="overflow-y-auto p-3 md:p-5 space-y-2"></div>
+        </div>
+    </div>
+
     <script>
-        // --- CONFIGURAZIONE SCRIPT MODIFICA (PASSO 1) ---
+        // --- CONFIGURAZIONE SCRIPT (web app del MAGAZZINO: scaffale, quantità, scansioni) ---
         const GAS_URL = "https://script.google.com/macros/s/AKfycbx2-YY947r-OmN2j8ELJULRSQzgY_1Ue-inVu9NQBhnc7KJP1eVhOb4axrmcDwa00U/exec";
 
         // --- CONFIGURAZIONE DATI ---
@@ -209,54 +234,78 @@
 
         const TIMEOUT_MS = 20000;
 
+        // --- CONTATORE ETICHETTE ---
+        // Nessun reset a orario: il contatore legge dai report quante etichette
+        // (tracking) non sono ancora state sparate. "Sparate" conta solo quelle del
+        // giro in corso; quando le mancanti arrivano a zero il giro si chiude da solo
+        // e la stampa successiva riparte da 0 %. Se una stampa arriva prima di aver
+        // finito la precedente, il totale semplicemente cresce.
+        const GIORNI_VALIDITA_ORDINE = 21;          // ordini più vecchi non contano (rete di sicurezza)
+        const POLL_SCANSIONI_MS = 60000;            // letture delle altre postazioni
+        const RICARICA_REPORT_MS = 5 * 60000;       // nuove stampe (il CSV pubblicato si aggiorna ~5 min)
+        const RETRY_CODA_MS = 30000;
+        const RE_CANCELLATO = /cancellat|annullat|cancel/i;
+        const RE_CONSEGNATO = /consegnat|delivered|in transito|in transit/i;
+        const MESI = { gen: 0, feb: 1, mar: 2, apr: 3, mag: 4, giu: 5, lug: 6, ago: 7, set: 8, ott: 9, nov: 10, dic: 11 };
+        const ORDINE_CANALI = ['TEMU', 'AMAZON', 'SHOPIFY', 'TIKTOK'];
+
         // --- VARIABILI GLOBALI ---
-        let searchBox, statusMessage, loadingText, ordersContainer, perfTimer, sidebarContainer,
-            sidebarTbody, mainLayout, countryFilter, loadProgress, loadBar, loadLabel;
-        let allGroupedOrders = [];
-        let ordersMap = new Map();
+        let searchBox, statusMessage, loadingText, ordersContainer, perfTimer, mainLayout,
+            loadProgress, loadBar, loadLabel, esitoBox, modale;
+        let R = nuovoArchivio();                    // report ordini (sostituito in blocco a ogni ricarica)
         let inventoryDataMap = new Map();
         let skuToAsinMap = new Map();
-        let trackingIndex = new Map();
-        let skuCountsByReport = [];
         let searchStartTime = 0;
         let renderTimer = null;
 
+        const scansioni = new Map();                // tracking normalizzato → { ts, t: S|B|I, d, inAttesa }
+        let scanCiclo = 0, scanOra = 0, scanPronte = false, offsetServer = 0, ultimoPoll = 0;
+        let scanInCorso = false, ricaricaInCorso = false, chiusuraInCorso = false, ultimaRicaricaForzata = 0;
+        let ultimoContatore = null;
+        let filtroCanale = 'TUTTI';
+        let coda = leggiJSON('scan_coda', []);
+        let dispositivo = leggiLS('scan_dispositivo') || creaNomePostazione();
+        let suoniAttivi = leggiLS('scan_suoni') !== '0';
+        let audioCtx = null;
+
+        function nuovoArchivio() {
+            return { ordini: [], mappa: new Map(), indice: new Map(), perNorm: new Map(), caricati: 0, falliti: [], completo: false };
+        }
+
         document.addEventListener('DOMContentLoaded', () => {
             searchBox = document.getElementById('search-box');
-            countryFilter = document.getElementById('country-filter');
             statusMessage = document.getElementById('status-message');
             loadingText = document.getElementById('loading-text');
             ordersContainer = document.getElementById('orders-container');
             perfTimer = document.getElementById('perf-timer');
-            sidebarContainer = document.getElementById('sidebar-container');
-            sidebarTbody = document.getElementById('sidebar-tbody');
             mainLayout = document.getElementById('main-layout');
             loadProgress = document.getElementById('load-progress');
             loadBar = document.getElementById('load-bar');
             loadLabel = document.getElementById('load-label');
+            esitoBox = document.getElementById('esito');
+            modale = document.getElementById('modale-mancanti');
 
-            NOMI_SCHEDE.forEach((nome, index) => {
-                let option = document.createElement('option');
-                option.value = index;
-                option.textContent = nome;
-                countryFilter.appendChild(option);
-            });
+            document.getElementById('nome-postazione').textContent = dispositivo;
+            aggiornaIconaSuoni();
 
             // Ricerca reattiva ma non ad ogni singolo carattere: lo scanner "digita"
             // decine di tasti in pochi ms e ogni render costava una scansione completa.
             searchBox.addEventListener('input', () => {
+                esitoBox.classList.add('hidden');               // nuovo codice: via l'esito precedente
                 clearTimeout(renderTimer);
                 renderTimer = setTimeout(renderOrders, 120);
             });
-            countryFilter.addEventListener('change', () => renderOrders());
 
+            // INVIO = lettura dello scanner: mostra l'ordine E registra l'etichetta come sparata
             searchBox.addEventListener('keydown', (event) => {
                 if (event.key === 'Enter' || event.keyCode === 13) {
                     event.preventDefault();
                     clearTimeout(renderTimer);
                     searchStartTime = performance.now();
+                    const letto = searchBox.value.trim();
                     searchBox.select();
                     renderOrders();
+                    gestisciSparo(letto);
                 }
             });
 
@@ -264,19 +313,71 @@
 
             // Rimette il fuoco sul campo quando torni sulla scheda o sulla finestra
             const rifocalizza = () => {
-                if (document.visibilityState === 'visible') setTimeout(() => searchBox.focus(), 50);
+                if (document.visibilityState === 'visible') {
+                    setTimeout(() => { if (modale.classList.contains('hidden')) searchBox.focus(); }, 50);
+                    if (scanPronte && Date.now() - ultimoPoll > 15000) caricaScansioni(false);
+                }
             };
             document.addEventListener('visibilitychange', rifocalizza);
             window.addEventListener('focus', rifocalizza);
+            window.addEventListener('online', () => svuotaCoda());
 
             // Se lo scanner "spara" mentre il fuoco è altrove, dirotta i tasti nel campo
             document.addEventListener('keydown', (e) => {
+                if (e.key === 'Escape' && !modale.classList.contains('hidden')) { chiudiMancanti(); return; }
                 if (document.activeElement === searchBox) return;
                 if (e.ctrlKey || e.metaKey || e.altKey) return;
                 if (e.key.length !== 1) return;                 // solo caratteri stampabili
+                if (!modale.classList.contains('hidden')) chiudiMancanti();
                 searchBox.focus();
                 searchBox.value = '';                           // nuova scansione, campo pulito
             });
+
+            // Pannello
+            document.getElementById('btn-mancanti').addEventListener('click', apriMancanti);
+            document.getElementById('btn-aggiorna').addEventListener('click', aggiornaTutto);
+            document.getElementById('btn-suoni').addEventListener('click', () => {
+                suoniAttivi = !suoniAttivi;
+                scriviLS('scan_suoni', suoniAttivi ? '1' : '0');
+                aggiornaIconaSuoni();
+                if (suoniAttivi) suono('ok');
+                searchBox.focus();
+            });
+            document.getElementById('btn-postazione').addEventListener('click', () => {
+                const nuovo = prompt('Nome di questa postazione (compare nelle etichette sparate):', dispositivo);
+                if (nuovo && nuovo.trim()) {
+                    dispositivo = nuovo.trim().slice(0, 30);
+                    scriviLS('scan_dispositivo', dispositivo);
+                    document.getElementById('nome-postazione').textContent = dispositivo;
+                }
+                searchBox.focus();
+            });
+
+            // Finestra mancanti
+            modale.addEventListener('click', (e) => {
+                if (e.target.closest('[data-chiudi]')) { chiudiMancanti(); return; }
+                const filtro = e.target.closest('[data-filtro]');
+                if (filtro) { filtroCanale = filtro.dataset.filtro; renderMancanti(); return; }
+                const apri = e.target.closest('[data-apri]');
+                if (apri) {
+                    chiudiMancanti();
+                    searchBox.value = apri.dataset.apri;
+                    renderOrders();                              // solo consultazione: non registra
+                    return;
+                }
+                const togli = e.target.closest('[data-togli]');
+                if (togli) conDoppioClic(togli, 'Confermi?', () => togliMancante(togli.dataset.togli));
+            });
+
+            // Annulla / ripristina dalla scheda dell'ordine
+            ordersContainer.addEventListener('click', (e) => {
+                const b = e.target.closest('[data-annulla]');
+                if (b) conDoppioClic(b, 'Sicuro? Annulla', () => annullaSparo(b.dataset.annulla));
+            });
+
+            // Letture rimaste in sospeso da una sessione precedente (rete caduta, pagina chiusa)
+            coda.forEach(v => scansioni.set(v.tracking, { ts: v.tsLocale || Date.now(), t: 'S', d: v.dispositivo, inAttesa: true }));
+            aggiornaStatoSync();
 
             loadAllData();
         });
@@ -299,25 +400,6 @@
 
         async function loadAllData() {
             const t0 = performance.now();
-            skuCountsByReport = new Array(NOMI_SCHEDE.length).fill(null);
-
-            let done = 0;
-            const total = NOMI_SCHEDE.length;
-            loadProgress.classList.remove('hidden');
-
-            const avanzamento = () => {
-                done++;
-                loadBar.style.width = Math.round((done / total) * 100) + '%';
-                loadLabel.textContent = `${done}/${total} report`;
-                loadingText.textContent = `Caricamento report... (${done}/${total})`;
-                if (done === 1) mostraSchermataPronta();
-                if (searchBox.value.trim().length > 0) renderOrders();
-                if (done === total) {
-                    setTimeout(() => loadProgress.classList.add('hidden'), 600);
-                    console.log(`[SCAN] Caricamento completato in ${(performance.now() - t0).toFixed(0)} ms — ` +
-                                `${allGroupedOrders.length} ordini, ${trackingIndex.size} chiavi tracking.`);
-                }
-            };
 
             // Anagrafica prodotti/magazzino: parte in parallelo e NON blocca i report.
             // L'arricchimento (ASIN, scaffale, immagine) avviene al momento del render.
@@ -326,32 +408,96 @@
                 fetchText(INVENTORY_CSV_URL).then(createInventoryMap)
             ]);
 
-            // Qui stava il collo di bottiglia: 14 fetch in serie con await dentro un for.
-            // Ora partono tutte insieme e ognuna viene indicizzata appena arriva.
-            const reports = NOMI_SCHEDE.map((nome, i) =>
-                fetchText(ORDER_SHEET_URLS[i])
-                    .then(csv => {
-                        skuCountsByReport[i] = {};
-                        processOrdersCsv(csv, i);
-                    })
-                    .catch(e => console.warn(`[SCAN] Scheda ${nome} non caricata:`, e.message))
-                    .finally(avanzamento)
-            );
+            // Scansioni già registrate (tutte le postazioni): anche queste in parallelo
+            const letture = caricaScansioni(true);
 
-            await Promise.allSettled(reports);
+            await caricaReport(false);
+            console.log(`[SCAN] Caricamento report in ${(performance.now() - t0).toFixed(0)} ms — ` +
+                        `${R.ordini.length} ordini, ${R.indice.size} chiavi tracking.`);
             await anagrafica;
 
-            if (allGroupedOrders.length === 0) {
+            if (R.ordini.length === 0) {
                 statusMessage.innerHTML = `<div class="text-red-600 p-4 font-medium">Nessun dato caricato. Controlla la connessione o la condivisione dei fogli.</div>`;
                 statusMessage.classList.remove('hidden');
                 return;
             }
             renderOrders();
+            await letture;
+            aggiornaContatore();
+            svuotaCoda();
+
+            setInterval(() => caricaScansioni(false), POLL_SCANSIONI_MS);
+            setInterval(ricaricaReportSilenziosa, RICARICA_REPORT_MS);
+            setInterval(svuotaCoda, RETRY_CODA_MS);
+        }
+
+        // Carica i 15 report. Al primo avvio riempie l'archivio man mano (si può già
+        // cercare mentre arrivano gli altri); nelle ricariche costruisce un archivio
+        // nuovo e lo sostituisce solo se tutti i report sono arrivati.
+        async function caricaReport(silenzioso) {
+            const A = silenzioso ? nuovoArchivio() : R;
+            let done = 0;
+            const total = NOMI_SCHEDE.length;
+            if (!silenzioso) loadProgress.classList.remove('hidden');
+
+            const avanzamento = () => {
+                done++;
+                if (silenzioso) return;
+                loadBar.style.width = Math.round((done / total) * 100) + '%';
+                loadLabel.textContent = `${done}/${total} report`;
+                loadingText.textContent = `Caricamento report... (${done}/${total})`;
+                if (done === 1) mostraSchermataPronta();
+                if (searchBox.value.trim().length > 0) renderOrders();
+                if (done === total) setTimeout(() => loadProgress.classList.add('hidden'), 600);
+            };
+
+            const reports = NOMI_SCHEDE.map((nome, i) =>
+                fetchText(ORDER_SHEET_URLS[i])
+                    .then(csv => { processOrdersCsv(csv, i, A); A.caricati++; })
+                    .catch(e => { A.falliti.push(nome); console.warn(`[SCAN] Scheda ${nome} non caricata:`, e.message); })
+                    .finally(avanzamento)
+            );
+            await Promise.allSettled(reports);
+            A.completo = A.falliti.length === 0;
+
+            if (silenzioso) {
+                if (!A.completo && A.caricati < R.caricati) {
+                    console.warn('[SCAN] Ricarica incompleta (' + A.falliti.join(', ') + '): tengo i dati precedenti.');
+                    return false;
+                }
+                R = A;
+            }
+            return true;
+        }
+
+        async function ricaricaReportSilenziosa() {
+            if (ricaricaInCorso) return;
+            ricaricaInCorso = true;
+            try {
+                if (await caricaReport(true)) {
+                    aggiornaContatore();
+                    aggiornaStrisce();
+                }
+            } finally {
+                ricaricaInCorso = false;
+            }
+        }
+
+        async function aggiornaTutto() {
+            const ico = document.getElementById('ico-aggiorna');
+            ico.classList.add('gira');
+            try {
+                await Promise.allSettled([ricaricaReportSilenziosa(), caricaScansioni(true)]);
+                await svuotaCoda();
+            } finally {
+                ico.classList.remove('gira');
+                searchBox.focus();
+            }
         }
 
         function mostraSchermataPronta() {
             if (searchBox.value.trim().length === 0) {
-                statusMessage.innerHTML = `<div class="p-8 text-center text-gray-500">Inserisci un codice e premi Invio.</div>`;
+                statusMessage.innerHTML = `<div class="p-8 text-center text-gray-500">Spara un'etichetta o inserisci un codice e premi Invio.</div>`;
                 statusMessage.classList.remove('hidden');
             }
         }
@@ -417,20 +563,29 @@
         // Ora la mappatura si legge una volta sola dall'intestazione della scheda.
         function buildMapping(header, reportIndex) {
             const nome = NOMI_SCHEDE[reportIndex];
-            if (nome === 'AMAZON') return { ...MAP_AMAZON, origine: 'fisso AMAZON' };
-            if (nome === 'TIKTOK') return { ...MAP_TIKTOK, origine: 'fisso TIKTOK' };
-            if (nome === 'SHOPIFY') return { ...MAP_SHOPIFY, origine: 'fisso SHOPIFY' };
-            const base = header.length >= 50 ? MAP_NEW : MAP_OLD;
             const h = header.map(x => (x || '').toString().trim().toLowerCase());
             let trovati = 0;
 
-            const find = (regexes, fallback) => {
+            const find = (regexes, fallback, conta = true) => {
                 for (const re of regexes) {
                     const i = h.findIndex(v => re.test(v));
-                    if (i !== -1) { trovati++; return i; }
+                    if (i !== -1) { if (conta) trovati++; return i; }
                 }
                 return fallback;
             };
+
+            // Stato e data servono al contatore (cancellati, consegnati, ordini vecchi)
+            const stati = {
+                STATO:  find([/^stato dell.ordine/, /^order status$/], 1, false),
+                STATO2: find([/^stato articolo/, /^order substatus$/], nome === 'TIKTOK' ? 2 : -1, false),
+                STATO3: find([/^stato logistica/], -1, false),
+                DATA:   find([/^data di acquisto/, /^created time$/], nome === 'TIKTOK' ? 23 : 29, false)
+            };
+
+            if (nome === 'AMAZON') return { ...MAP_AMAZON, ...stati, origine: 'fisso AMAZON' };
+            if (nome === 'TIKTOK') return { ...MAP_TIKTOK, ...stati, origine: 'fisso TIKTOK' };
+            if (nome === 'SHOPIFY') return { ...MAP_SHOPIFY, ...stati, origine: 'fisso SHOPIFY' };
+            const base = header.length >= 50 ? MAP_NEW : MAP_OLD;
 
             const map = {
                 ORDER_ID:   find([/^id ordine/, /^order id/, /^numero ordine/], base.ORDER_ID),
@@ -438,21 +593,22 @@
                 SKU:        find([/^codice sku/, /^sku$/, /^sku code/], base.SKU),
                 QTY:        find([/^quantit[àa]$/, /^quantit/, /^quantity/], base.QTY),
                 CLIENT:     find([/destinatar/, /^recipient/], base.CLIENT),
-                TRACKING:   find([/^numero di tracciamento/, /tracciamento/, /tracking number/], base.TRACKING)
+                TRACKING:   find([/^numero di tracciamento/, /tracciamento/, /tracking number/], base.TRACKING),
+                ...stati
             };
             map.origine = `intestazione (${trovati}/6 colonne riconosciute, ${header.length} col.)`;
             return map;
         }
 
-        function processOrdersCsv(csvText, reportIndex) {
+        function processOrdersCsv(csvText, reportIndex, A) {
             const rows = parseCSV(csvText);
             if (rows.length < 2) return;
 
             const mapping = buildMapping(rows[0], reportIndex);
             console.log(`[SCAN] ${NOMI_SCHEDE[reportIndex]} — tracking in col. ${colName(mapping.TRACKING)}, ` +
-                        `SKU ${colName(mapping.SKU)}, qtà ${colName(mapping.QTY)} — ${mapping.origine}`);
+                        `SKU ${colName(mapping.SKU)}, qtà ${colName(mapping.QTY)}, stato ${colName(mapping.STATO)}, ` +
+                        `data ${colName(mapping.DATA)} — ${mapping.origine}`);
 
-            const counts = skuCountsByReport[reportIndex];
             const nuovi = [];
 
             for (let r = 1; r < rows.length; r++) {
@@ -468,30 +624,67 @@
                 const itemTitle = get(mapping.ITEM_TITLE) || 'N/D';
                 const tracking = get(mapping.TRACKING);
 
-                if (sku !== 'N/D') counts[sku] = (counts[sku] || 0) + qty;
+                const stato = get(mapping.STATO);
+                const cancellata = RE_CANCELLATO.test(stato);
+                const consegnata = RE_CONSEGNATO.test(stato) || RE_CONSEGNATO.test(get(mapping.STATO2)) ||
+                                   RE_CONSEGNATO.test(get(mapping.STATO3));
+                const dataTs = parseData(get(mapping.DATA));
 
                 const item = { articolo: itemTitle, sku, qty };
 
                 const normTrack = tracking ? normalizeTracking(tracking) : '';
                 const groupKey = normTrack ? `${reportIndex}|${normTrack}` : `${reportIndex}|#${orderId}`;
 
-                const esistente = ordersMap.get(groupKey);
+                const esistente = A.mappa.get(groupKey);
                 if (esistente) {
                     esistente.items.push(item);
+                    esistente.nRighe++;
+                    if (cancellata) esistente.nCanc++;
+                    if (consegnata) esistente.consegnato = true;
+                    if (dataTs > esistente.dataTs) esistente.dataTs = dataTs;
                 } else {
                     const ordine = {
                         orderId, cliente,
                         tracking: tracking || 'N/D',
+                        norm: normTrack,
                         reportIndex,
-                        items: [item]
+                        items: [item],
+                        nRighe: 1,
+                        nCanc: cancellata ? 1 : 0,
+                        consegnato: consegnata,
+                        dataTs
                     };
-                    ordersMap.set(groupKey, ordine);
-                    allGroupedOrders.push(ordine);
+                    A.mappa.set(groupKey, ordine);
+                    A.ordini.push(ordine);
                     nuovi.push(ordine);
                 }
             }
 
-            indicizzaTracking(nuovi);
+            indicizzaTracking(nuovi, A);
+        }
+
+        // Date dei report: "16 set 2026, 11:15 CEST(UTC+2)" (TEMU, Amazon, Shopify)
+        // e "09/17/2026 8:45:45 AM" (TikTok, mese/giorno/anno). 0 = non riconosciuta.
+        function parseData(s) {
+            if (!s) return 0;
+            let m = s.match(/(\d{1,2})\s+([a-zA-Z]{3})[a-zA-Z]*\.?\s+(\d{4})(?:,?\s+(\d{1,2}):(\d{2}))?/);
+            if (m) {
+                const mese = MESI[m[2].toLowerCase()];
+                if (mese != null) return new Date(+m[3], mese, +m[1], +(m[4] || 0), +(m[5] || 0)).getTime();
+            }
+            m = s.match(/^(\d{4})-(\d{2})-(\d{2})/);
+            if (m) return new Date(+m[1], +m[2] - 1, +m[3]).getTime();
+            m = s.match(/(\d{1,2})\/(\d{1,2})\/(\d{4})(?:\s+(\d{1,2}):(\d{2})(?::\d{2})?\s*(AM|PM)?)?/i);
+            if (m) {
+                let hh = +(m[4] || 0);
+                if (m[6]) {
+                    const pm = /pm/i.test(m[6]);
+                    if (pm && hh < 12) hh += 12;
+                    if (!pm && hh === 12) hh = 0;
+                }
+                return new Date(+m[3], +m[1] - 1, +m[2], hh, +(m[5] || 0)).getTime();
+            }
+            return 0;
         }
 
         function colName(i) {
@@ -512,34 +705,513 @@
         }
 
         // Riduce il codice alla parte stabile: la stessa spedizione può comparire
-    // sull'etichetta con prefisso/suffisso diversi rispetto al foglio.
-function chiaveTracking(norm) {
-    let t = norm;
-    if (t.startsWith('089')) {
-        // BRT "vecchio": il foglio ha 14 cifre, l'etichetta 15 o 18
-        if (t.length === 18) t = t.slice(1, -3);
-        else if (t.length === 15) t = t.slice(1);
-    }
-    else if (t.length === 18 && /^\d{18}$/.test(t)) {
-        // BRT a 18 cifre (179…, 008…, e futuri prefissi): il foglio ne ha 15
-        t = t.slice(0, -3);
-    }
-    else if (t.length > 30) t = t.slice(-12);
-    return t.toLowerCase();
-    }
+        // sull'etichetta con prefisso/suffisso diversi rispetto al foglio.
+        function chiaveTracking(norm) {
+            let t = norm;
+            if (t.startsWith('089')) {
+                // BRT "vecchio": il foglio ha 14 cifre, l'etichetta 15 o 18
+                if (t.length === 18) t = t.slice(1, -3);
+                else if (t.length === 15) t = t.slice(1);
+            }
+            else if (t.length === 18 && /^\d{18}$/.test(t)) {
+                // BRT a 18 cifre (179…, 008…, e futuri prefissi): il foglio ne ha 15
+                t = t.slice(0, -3);
+            }
+            else if (t.length > 30) t = t.slice(-12);
+            return t.toLowerCase();
+        }
 
-        function indicizzaTracking(ordini) {
+        function indicizzaTracking(ordini, A) {
             ordini.forEach(order => {
-                if (!order.tracking || order.tracking === 'N/D') return;
-                const norm = normalizeTracking(order.tracking);
-                if (!norm) return;
+                if (!order.norm) return;
+                const norm = order.norm;
                 // Doppia chiave: forma ridotta + forma integrale. Così il codice
                 // trova l'ordine sia letto dall'etichetta sia copiato dal foglio.
                 const ridotta = chiaveTracking(norm);
-                if (!trackingIndex.has(ridotta)) trackingIndex.set(ridotta, order);
+                if (!A.indice.has(ridotta)) A.indice.set(ridotta, order);
                 const intera = norm.toLowerCase();
-                if (!trackingIndex.has(intera)) trackingIndex.set(intera, order);
+                if (!A.indice.has(intera)) A.indice.set(intera, order);
+                if (!A.perNorm.has(norm)) A.perNorm.set(norm, order);
             });
+        }
+
+        function trovaEsatto(raw) {
+            const norm = normalizeTracking(raw);
+            if (!norm) return null;
+            return R.indice.get(chiaveTracking(norm)) || R.indice.get(norm.toLowerCase()) || null;
+        }
+
+        // ------------------------------------------------------------------
+        // SCANSIONI: registro condiviso fra le postazioni (scheda SCANSIONI)
+        // ------------------------------------------------------------------
+
+        async function chiamaGAS(body) {
+            const controller = new AbortController();
+            const t = setTimeout(() => controller.abort(), TIMEOUT_MS);
+            try {
+                const res = await fetch(GAS_URL, { method: 'POST', redirect: 'follow', body: JSON.stringify(body), signal: controller.signal });
+                if (!res.ok) throw new Error('HTTP ' + res.status);
+                return await res.json();
+            } finally {
+                clearTimeout(t);
+            }
+        }
+
+        async function caricaScansioni(completo) {
+            if (scanInCorso) return;
+            scanInCorso = true;
+            try {
+                // 2 minuti di sovrapposizione: una lettura salvata mentre rispondeva
+                // la chiamata precedente non va persa (i doppioni non contano).
+                const dal = (!completo && scanOra) ? scanOra - 120000 : 0;
+                const j = await chiamaGAS({ azione: 'elenco', dal });
+                if (!j.success) throw new Error(j.error || 'risposta non valida');
+                offsetServer = j.ora - Date.now();
+                if (j.completo) {
+                    const locali = [...scansioni].filter(([, v]) => v.inAttesa);
+                    scansioni.clear();
+                    locali.forEach(([k, v]) => scansioni.set(k, v));
+                }
+                const disp = j.dispositivi || [];
+                (j.righe || []).forEach(([ts, norm, t, di]) => applicaRiga(ts, norm, t, disp[di] || ''));
+                scanCiclo = Math.max(scanCiclo, Number(j.ciclo) || 0);
+                scanOra = j.ora;
+                scanPronte = true;
+                ultimoPoll = Date.now();
+                aggiornaContatore();
+                aggiornaStrisce();
+            } catch (e) {
+                console.warn('[SCAN] Scansioni non lette:', e.message);
+                if (!scanPronte) document.getElementById('cnt-label').textContent = 'registro scansioni non raggiungibile, riprovo…';
+            } finally {
+                scanInCorso = false;
+                aggiornaStatoSync();
+            }
+        }
+
+        function applicaRiga(ts, norm, t, d) {
+            const e = scansioni.get(norm);
+            if (t === 'A') {                                     // annullata da una postazione
+                if (e && e.t !== 'B' && e.ts <= ts) scansioni.delete(norm);
+                return;
+            }
+            if (e && e.t === 'B') return;
+            if (e && !e.inAttesa && e.ts > ts) return;
+            scansioni.set(norm, { ts, t, d });
+        }
+
+        function gestisciSparo(letto) {
+            if (!letto) return;
+            const o = trovaEsatto(letto);
+            if (!o) {
+                if (R.caricati < NOMI_SCHEDE.length && !R.completo) {
+                    mostraEsito('info', 'Report ancora in caricamento… riprova tra un attimo');
+                } else {
+                    // Etichetta appena stampata ma report non ancora aggiornato? Ricarico subito
+                    // (al massimo una volta al minuto) invece di aspettare il giro dei 5 minuti.
+                    const ricarico = Date.now() - ultimaRicaricaForzata > 60000;
+                    if (ricarico) { ultimaRicaricaForzata = Date.now(); ricaricaReportSilenziosa(); }
+                    mostraEsito('errore', 'Tracking non trovato nei report' + (ricarico ? ' — li ricarico, riprova tra un minuto' : ''));
+                    suono('errore');
+                }
+                return;
+            }
+            if (!o.norm) return;
+
+            if (o.nCanc === o.nRighe) {
+                mostraEsito('errore', '⛔ ORDINE CANCELLATO — NON SPEDIRE');
+                suono('errore');
+                return;
+            }
+
+            const s = scansioni.get(o.norm);
+            if (s) {
+                mostraEsito('gia', testoGiaSparata(s));
+                suono('gia');
+                return;
+            }
+
+            const voce = {
+                tracking: o.norm,
+                scheda: NOMI_SCHEDE[o.reportIndex],
+                ordine: o.orderId,
+                letto,
+                dispositivo,
+                tsLocale: Date.now() + offsetServer
+            };
+            scansioni.set(o.norm, { ts: voce.tsLocale, t: 'S', d: dispositivo, inAttesa: true });
+            aggiungiInCoda(voce);                                 // resta salvata anche se la pagina si chiude
+            aggiornaContatore();
+            aggiornaStrisce();
+
+            const rimaste = ultimoContatore ? ultimoContatore.mancanti.length : null;
+            mostraEsito('ok', '✓ Sparata' + (rimaste != null ? (rimaste ? ` · ne mancano ${rimaste}` : ' · finite! 🎉') : ''));
+            suono('ok');
+            inviaScansione(voce);
+        }
+
+        function testoGiaSparata(s) {
+            if (s.t === 'B') return 'Già lavorata prima dell\'attivazione del contatore';
+            if (s.t === 'I') return `Era stata tolta dalla lista (${quando(s.ts)}${s.d ? ' · ' + s.d : ''})`;
+            return `Già sparata ${quando(s.ts)}${s.d ? ' · ' + s.d : ''}`;
+        }
+
+        async function inviaScansione(voce) {
+            try {
+                const j = await chiamaGAS({
+                    azione: 'scansione', tracking: voce.tracking, scheda: voce.scheda,
+                    ordine: voce.ordine, letto: voce.letto, dispositivo: voce.dispositivo
+                });
+                if (!j.success) throw new Error(j.error || 'errore');
+                togliDaCoda(voce.tracking);
+                if (j.gia) {
+                    const t = j.tipo === 'BASELINE' ? 'B' : j.tipo === 'IGNORATO' ? 'I' : 'S';
+                    scansioni.set(voce.tracking, { ts: j.quando, t, d: j.dispositivo });
+                    if (t !== 'S' || j.dispositivo !== voce.dispositivo) {
+                        mostraEsito('gia', 'Attenzione: ' + testoGiaSparata({ ts: j.quando, t, d: j.dispositivo }).toLowerCase());
+                        suono('gia');
+                    }
+                } else {
+                    const e = scansioni.get(voce.tracking);
+                    if (e) { e.ts = j.quando; e.inAttesa = false; }
+                }
+                scanCiclo = Math.max(scanCiclo, Number(j.ciclo) || 0);
+                aggiornaContatore();
+                aggiornaStrisce();
+                return true;
+            } catch (e) {
+                console.warn('[SCAN] Lettura non inviata, resta in coda:', voce.tracking, e.message);
+                return false;
+            } finally {
+                aggiornaStatoSync();
+            }
+        }
+
+        function aggiungiInCoda(voce) {
+            coda = coda.filter(v => v.tracking !== voce.tracking);
+            coda.push(voce);
+            scriviJSON('scan_coda', coda);
+            aggiornaStatoSync();
+        }
+
+        function togliDaCoda(tracking) {
+            coda = coda.filter(v => v.tracking !== tracking);
+            scriviJSON('scan_coda', coda);
+        }
+
+        let codaInCorso = false;
+        async function svuotaCoda() {
+            if (codaInCorso || !coda.length) return;
+            codaInCorso = true;
+            try {
+                for (const voce of [...coda]) {
+                    if (!(await inviaScansione(voce))) break;       // rete ancora giù: riprovo più tardi
+                }
+            } finally {
+                codaInCorso = false;
+            }
+        }
+
+        function togliMancante(norm) {
+            const o = R.perNorm.get(norm);
+            if (!o) return;
+            scansioni.set(norm, { ts: Date.now() + offsetServer, t: 'I', d: dispositivo, inAttesa: true });
+            aggiornaContatore();
+            chiamaGAS({ azione: 'ignora', tracking: norm, scheda: NOMI_SCHEDE[o.reportIndex], ordine: o.orderId, dispositivo })
+                .then(j => {
+                    if (!j.success) throw new Error(j.error || 'errore');
+                    const e = scansioni.get(norm);
+                    if (j.gia) {
+                        const t = j.tipo === 'BASELINE' ? 'B' : j.tipo === 'IGNORATO' ? 'I' : 'S';
+                        scansioni.set(norm, { ts: j.quando, t, d: j.dispositivo });
+                    } else if (e) { e.ts = j.quando; e.inAttesa = false; }
+                    aggiornaContatore();
+                })
+                .catch(err => {
+                    scansioni.delete(norm);
+                    aggiornaContatore();
+                    mostraEsito('errore', `Non sono riuscito a togliere ${o.tracking}: riprova`);
+                    console.warn('[SCAN] ignora fallito', err);
+                });
+        }
+
+        function annullaSparo(norm) {
+            const prima = scansioni.get(norm);
+            if (!prima || prima.t === 'B') return;
+            const inCoda = coda.some(v => v.tracking === norm);
+            scansioni.delete(norm);
+            aggiornaContatore();
+            aggiornaStrisce();
+            mostraEsito('info', 'Lettura annullata: l\'etichetta torna tra le mancanti');
+            if (inCoda) { togliDaCoda(norm); aggiornaStatoSync(); return; }   // non era ancora arrivata al foglio
+            chiamaGAS({ azione: 'annulla', tracking: norm, dispositivo })
+                .then(j => { if (!j.success) throw new Error(j.error || 'errore'); })
+                .catch(err => {
+                    scansioni.set(norm, prima);
+                    aggiornaContatore();
+                    aggiornaStrisce();
+                    mostraEsito('errore', 'Annullamento non riuscito: riprova');
+                    console.warn('[SCAN] annulla fallito', err);
+                });
+            searchBox.focus();
+        }
+
+        async function chiudiCiclo() {
+            chiusuraInCorso = true;
+            try {
+                const j = await chiamaGAS({ azione: 'chiudiCiclo' });
+                if (j.success) {
+                    scanCiclo = Math.max(scanCiclo, Number(j.ciclo) || 0);
+                    aggiornaContatore();
+                }
+            } catch (e) {
+                console.warn('[SCAN] chiusura giro non riuscita', e.message);
+            } finally {
+                setTimeout(() => { chiusuraInCorso = false; }, 30000);
+            }
+        }
+
+        // ------------------------------------------------------------------
+        // CONTATORE
+        // ------------------------------------------------------------------
+
+        function canaleDi(o) {
+            const n = NOMI_SCHEDE[o.reportIndex];
+            return (n === 'AMAZON' || n === 'SHOPIFY' || n === 'TIKTOK') ? n : 'TEMU';
+        }
+
+        function calcolaContatore() {
+            const limite = Date.now() + offsetServer - GIORNI_VALIDITA_ORDINE * 86400000;
+            const visti = new Set();
+            const mancanti = [];
+            let fatti = 0;
+            for (const o of R.ordini) {
+                if (!o.norm || visti.has(o.norm)) continue;
+                visti.add(o.norm);
+                const s = scansioni.get(o.norm);
+                if (s) { if (s.t !== 'B' && s.ts >= scanCiclo) fatti++; continue; }
+                if (o.nCanc === o.nRighe) continue;                // cancellato: non va spedito
+                if (o.consegnato) continue;                        // il marketplace lo dà già in viaggio
+                if (o.dataTs && o.dataTs < limite) continue;
+                mancanti.push(o);
+            }
+            return { mancanti, fatti };
+        }
+
+        function aggiornaContatore() {
+            const elN = document.getElementById('cnt-mancanti');
+            const elL = document.getElementById('cnt-label');
+            const elB = document.getElementById('cnt-barra');
+            const elF = document.getElementById('cnt-fatti');
+            const elP = document.getElementById('cnt-perc');
+            const elC = document.getElementById('cnt-canali');
+            const elA = document.getElementById('cnt-avviso');
+            const btn = document.getElementById('btn-mancanti');
+
+            if (!scanPronte || R.caricati === 0) {
+                elN.textContent = '…';
+                elL.textContent = R.caricati === 0 ? 'caricamento report…' : 'lettura scansioni…';
+                btn.disabled = true;
+                return;
+            }
+
+            const { mancanti, fatti } = calcolaContatore();
+            ultimoContatore = { mancanti, fatti };
+            const n = mancanti.length;
+            const totale = n + fatti;
+            const perc = totale ? Math.floor(fatti / totale * 100) : 100;
+
+            elN.textContent = n;
+            elN.className = 'text-6xl font-black leading-none tabular-nums ' + (n ? 'text-brand-orange' : 'text-green-600');
+            elL.textContent = n === 0 ? 'tutto sparato ✓' : (n === 1 ? 'etichetta da sparare' : 'etichette da sparare');
+            elB.style.width = perc + '%';
+            elB.className = 'h-full transition-all duration-500 ' + (n ? 'bg-brand-orange' : 'bg-green-500');
+            elF.textContent = totale ? `${fatti} ${fatti === 1 ? 'sparata' : 'sparate'} su ${totale}` : 'In attesa della prossima stampa';
+            elP.textContent = perc + '%';
+
+            const perCanale = {};
+            const perPaese = {};
+            mancanti.forEach(o => {
+                const c = canaleDi(o);
+                perCanale[c] = (perCanale[c] || 0) + 1;
+                if (c === 'TEMU') { const p = NOMI_SCHEDE[o.reportIndex]; perPaese[p] = (perPaese[p] || 0) + 1; }
+            });
+            const titoloTemu = Object.entries(perPaese).sort((a, b) => b[1] - a[1]).map(([p, q]) => `${p}: ${q}`).join('\n');
+            elC.innerHTML = ORDINE_CANALI.filter(c => perCanale[c]).map(c =>
+                `<span class="px-2 py-0.5 rounded-full bg-orange-50 text-brand-orange text-xs font-bold border border-orange-200" ${c === 'TEMU' ? `title="${esc(titoloTemu)}"` : ''}>${c} ${perCanale[c]}</span>`
+            ).join('');
+            btn.disabled = n === 0;
+
+            const tutti = R.caricati + R.falliti.length === NOMI_SCHEDE.length;
+            if (tutti && R.falliti.length) {
+                elA.textContent = `Report non caricati: ${R.falliti.join(', ')} — conteggio incompleto`;
+                elA.classList.remove('hidden');
+            } else {
+                elA.classList.add('hidden');
+            }
+
+            // Giro finito: la prossima stampa riparte da 0 %
+            if (n === 0 && fatti > 0 && R.completo && !coda.length && !chiusuraInCorso) chiudiCiclo();
+
+            if (!modale.classList.contains('hidden')) renderMancanti();
+        }
+
+        function aggiornaStatoSync() {
+            const el = document.getElementById('cnt-stato');
+            if (!el) return;
+            if (coda.length) {
+                el.innerHTML = `<span class="text-amber-600 font-semibold" title="Letture salvate su questo PC, verranno inviate appena torna la rete">⏳ ${coda.length} in invio</span>`;
+            } else if (scanPronte && Date.now() - ultimoPoll > POLL_SCANSIONI_MS * 3) {
+                el.innerHTML = '<span class="text-red-500 font-semibold">⚠ non aggiornato</span>';
+            } else if (ultimoPoll) {
+                el.textContent = 'agg. ' + oraBreve(ultimoPoll);
+            } else {
+                el.textContent = '';
+            }
+        }
+
+        // ------------------------------------------------------------------
+        // FINESTRA "MANCANTI"
+        // ------------------------------------------------------------------
+
+        function apriMancanti() {
+            filtroCanale = 'TUTTI';
+            modale.classList.remove('hidden');
+            renderMancanti();
+        }
+
+        function chiudiMancanti() {
+            modale.classList.add('hidden');
+            searchBox.focus();
+        }
+
+        function renderMancanti() {
+            const tutti = ultimoContatore ? ultimoContatore.mancanti : [];
+            const conta = { TUTTI: tutti.length };
+            tutti.forEach(o => { const c = canaleDi(o); conta[c] = (conta[c] || 0) + 1; });
+            if (filtroCanale !== 'TUTTI' && !conta[filtroCanale]) filtroCanale = 'TUTTI';
+
+            document.getElementById('mm-totale').textContent = tutti.length ? `(${tutti.length})` : '';
+            document.getElementById('mm-filtri').innerHTML = ['TUTTI', ...ORDINE_CANALI].filter(c => conta[c]).map(c => {
+                const attivo = c === filtroCanale;
+                return `<button type="button" data-filtro="${c}" class="px-3 py-1 rounded-full text-sm font-semibold border ${attivo ? 'bg-brand-orange text-white border-brand-orange' : 'bg-white text-gray-600 border-gray-300 hover:border-brand-orange'}">${c === 'TUTTI' ? 'Tutti' : c} ${conta[c]}</button>`;
+            }).join('');
+
+            const lista = tutti
+                .filter(o => filtroCanale === 'TUTTI' || canaleDi(o) === filtroCanale)
+                .sort((a, b) => (ORDINE_CANALI.indexOf(canaleDi(a)) - ORDINE_CANALI.indexOf(canaleDi(b))) ||
+                                (a.reportIndex - b.reportIndex) || ((a.dataTs || 0) - (b.dataTs || 0)));
+
+            const box = document.getElementById('mm-lista');
+            if (!lista.length) {
+                box.innerHTML = '<p class="p-8 text-center text-green-600 font-semibold text-lg">Nessuna etichetta da sparare ✓</p>';
+                return;
+            }
+            box.innerHTML = lista.map(o => {
+                const articoli = o.items.map(arricchisci).map(it =>
+                    `<span class="inline-block mr-3"><b class="text-brand-orange">${esc(it.sku)}</b> ×${it.qty}` +
+                    (it.scaffale && it.scaffale !== 'N/D' ? ` <span class="text-gray-400">· scaff.</span> <b>${esc(it.scaffale)}</b>` : '') + '</span>'
+                ).join('');
+                return `
+                    <div class="flex flex-col md:flex-row md:items-center gap-1 md:gap-4 p-3 rounded-xl border border-gray-200 hover:border-brand-orange transition-colors">
+                        <span class="shrink-0 w-28 text-xs font-bold uppercase text-white bg-brand-gray rounded px-2 py-1 text-center">${esc(NOMI_SCHEDE[o.reportIndex])}</span>
+                        <button type="button" data-apri="${esc(o.tracking)}" class="shrink-0 font-mono font-bold text-brand-orange hover:underline text-left" title="Apri l'ordine (solo consultazione)">${esc(o.tracking)}</button>
+                        <span class="shrink-0 md:w-44 truncate text-gray-800 font-medium" title="${esc(o.cliente)}">${esc(o.cliente)}</span>
+                        <span class="shrink-0 text-sm text-gray-400 md:w-24">${o.dataTs ? esc(dataBreve(o.dataTs)) : ''}</span>
+                        <span class="flex-1 text-sm text-gray-600 min-w-0">${articoli}</span>
+                        <button type="button" data-togli="${esc(o.norm)}" class="shrink-0 self-start md:self-auto px-3 py-1.5 rounded-lg text-sm font-semibold border border-gray-300 text-gray-500 hover:border-red-400 hover:text-red-600" title="Toglie questa etichetta dal conteggio (es. ristampata o ordine annullato)">Togli</button>
+                    </div>`;
+            }).join('');
+        }
+
+        // Primo clic: chiede conferma sul bottone stesso. Secondo clic entro 4 s: esegue.
+        function conDoppioClic(btn, testoConferma, azione) {
+            if (btn.dataset.conferma === '1') {
+                btn.dataset.conferma = '';
+                azione();
+                return;
+            }
+            const originale = btn.innerHTML;
+            btn.dataset.conferma = '1';
+            btn.innerHTML = testoConferma;
+            btn.classList.add('bg-red-600', 'text-white', 'border-red-600');
+            setTimeout(() => {
+                if (!btn.isConnected || btn.dataset.conferma !== '1') return;
+                btn.dataset.conferma = '';
+                btn.innerHTML = originale;
+                btn.classList.remove('bg-red-600', 'text-white', 'border-red-600');
+            }, 4000);
+        }
+
+        // ------------------------------------------------------------------
+        // ESITO, SUONI, UTILITÀ
+        // ------------------------------------------------------------------
+
+        function mostraEsito(tipo, testo) {
+            const stili = {
+                ok:     'bg-green-600 text-white',
+                gia:    'bg-amber-400 text-gray-900',
+                errore: 'bg-red-600 text-white',
+                info:   'bg-gray-100 text-gray-600'
+            };
+            esitoBox.className = 'mt-3 rounded-xl px-5 py-4 text-xl md:text-2xl font-bold ' + (stili[tipo] || stili.info);
+            esitoBox.textContent = testo;
+            void esitoBox.offsetWidth;                           // riavvia l'animazione
+            esitoBox.classList.add('lampo');
+        }
+
+        function suono(tipo) {
+            if (!suoniAttivi) return;
+            try {
+                audioCtx = audioCtx || new (window.AudioContext || window.webkitAudioContext)();
+                const seq = tipo === 'ok'  ? [[1046, 0, 0.12]]
+                          : tipo === 'gia' ? [[620, 0, 0.12], [620, 0.2, 0.12]]
+                          :                  [[240, 0, 0.35], [180, 0.4, 0.5]];
+                const t0 = audioCtx.currentTime;
+                seq.forEach(([f, t, d]) => {
+                    const osc = audioCtx.createOscillator();
+                    const g = audioCtx.createGain();
+                    osc.type = tipo === 'errore' ? 'sawtooth' : 'sine';
+                    osc.frequency.value = f;
+                    g.gain.setValueAtTime(0.0001, t0 + t);
+                    g.gain.exponentialRampToValueAtTime(0.25, t0 + t + 0.01);
+                    g.gain.exponentialRampToValueAtTime(0.0001, t0 + t + d);
+                    osc.connect(g); g.connect(audioCtx.destination);
+                    osc.start(t0 + t); osc.stop(t0 + t + d + 0.05);
+                });
+            } catch (e) { /* audio non disponibile */ }
+        }
+
+        function aggiornaIconaSuoni() {
+            const b = document.getElementById('btn-suoni');
+            b.textContent = suoniAttivi ? '🔊' : '🔇';
+            b.title = suoniAttivi ? 'Suoni attivi (clic per spegnere)' : 'Suoni spenti (clic per accendere)';
+        }
+
+        function oraBreve(ts) {
+            return new Date(ts).toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' });
+        }
+        function dataBreve(ts) {
+            const d = new Date(ts);
+            return d.toLocaleDateString('it-IT', { day: '2-digit', month: '2-digit' }) + ' ' + oraBreve(ts);
+        }
+        function quando(ts) {
+            const d = new Date(ts), oggi = new Date();
+            const stessoGiorno = d.toDateString() === oggi.toDateString();
+            return stessoGiorno ? `alle ${oraBreve(ts)}` : `il ${dataBreve(ts)}`;
+        }
+
+        function leggiLS(k) { try { return localStorage.getItem(k); } catch (e) { return null; } }
+        function scriviLS(k, v) { try { localStorage.setItem(k, v); } catch (e) { /* storage non disponibile */ } }
+        function leggiJSON(k, def) { try { const v = JSON.parse(leggiLS(k)); return Array.isArray(v) ? v : def; } catch (e) { return def; } }
+        function scriviJSON(k, v) { scriviLS(k, JSON.stringify(v)); }
+        function creaNomePostazione() {
+            const lettere = 'ABCDEFGHJKLMNPQRSTUVWXYZ';
+            let s = '';
+            for (let i = 0; i < 3; i++) s += lettere[Math.floor(Math.random() * lettere.length)];
+            const nome = (/Android|iPhone|iPad/i.test(navigator.userAgent) ? 'TEL-' : 'PC-') + s;
+            scriviLS('scan_dispositivo', nome);
+            return nome;
         }
 
         // ------------------------------------------------------------------
@@ -647,23 +1319,58 @@ function chiaveTracking(norm) {
                 .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
         }
 
+        // Striscia di stato sotto l'intestazione dell'ordine
+        function htmlStriscia(o) {
+            const base = 'px-4 py-2 text-sm md:text-base font-bold flex items-center justify-between gap-3';
+            const norm = o.norm || '';
+            const btn = (testo) => `<button type="button" data-annulla="${esc(norm)}" class="px-3 py-1 rounded-lg border border-current text-xs md:text-sm font-semibold opacity-90 hover:opacity-100">${testo}</button>`;
+            let cls, testo, azione = '';
+            const s = norm ? scansioni.get(norm) : null;
+            if (!norm) {
+                cls = 'bg-gray-100 text-gray-500'; testo = 'Ordine senza tracking';
+            } else if (o.nCanc === o.nRighe) {
+                cls = 'bg-red-600 text-white'; testo = '⛔ ORDINE CANCELLATO — NON SPEDIRE';
+            } else if (s && s.t === 'S') {
+                cls = 'bg-green-600 text-white';
+                testo = `✓ SPARATA ${quando(s.ts)}${s.d ? ' · ' + esc(s.d) : ''}${s.inAttesa ? ' · invio…' : ''}`;
+                azione = btn('Annulla');
+            } else if (s && s.t === 'I') {
+                cls = 'bg-gray-200 text-gray-700';
+                testo = `Tolta dalla lista ${quando(s.ts)}${s.d ? ' · ' + esc(s.d) : ''}`;
+                azione = btn('Rimetti tra le mancanti');
+            } else if (s && s.t === 'B') {
+                cls = 'bg-gray-200 text-gray-600'; testo = 'Già lavorata prima dell\'attivazione del contatore';
+            } else if (o.consegnato) {
+                cls = 'bg-sky-100 text-sky-800'; testo = 'Il marketplace la dà già in transito / consegnata';
+            } else {
+                cls = 'bg-orange-100 text-orange-800'; testo = 'DA SPARARE';
+            }
+            return `<div data-striscia="${esc(norm)}" class="${base} ${cls}"><span>${testo}</span>${azione}</div>`;
+        }
+
+        function aggiornaStrisce() {
+            document.querySelectorAll('[data-striscia]').forEach(el => {
+                const norm = el.dataset.striscia;
+                if (!norm) return;
+                const o = R.perNorm.get(norm);
+                if (o) el.outerHTML = htmlStriscia(o);
+            });
+        }
+
         function renderOrders() {
             const rawInput = searchBox.value.trim();
             const norm = normalizeTracking(rawInput);
             const searchTerm = chiaveTracking(norm);
             const normLower = norm.toLowerCase();
-            const selectedReportIndex = parseInt(countryFilter.value, 10);
 
             let filteredOrders = [];
 
-            const hit = trackingIndex.get(searchTerm) || trackingIndex.get(normLower);
+            const hit = R.indice.get(searchTerm) || R.indice.get(normLower);
             if (hit) {
-                if (selectedReportIndex === -1 || hit.reportIndex === selectedReportIndex) filteredOrders = [hit];
+                filteredOrders = [hit];
             } else if (searchTerm.length >= 4) {
-                for (const o of allGroupedOrders) {
-                    if (selectedReportIndex !== -1 && o.reportIndex !== selectedReportIndex) continue;
-                    if (o.tracking && o.tracking !== 'N/D' &&
-                        normalizeTracking(o.tracking).toLowerCase().includes(searchTerm)) {
+                for (const o of R.ordini) {
+                    if (o.norm && o.norm.toLowerCase().includes(searchTerm)) {
                         filteredOrders.push(o);
                         if (filteredOrders.length >= 25) break;
                     }
@@ -671,16 +1378,14 @@ function chiaveTracking(norm) {
             }
 
             ordersContainer.innerHTML = '';
-            sidebarTbody.innerHTML = '';
             statusMessage.classList.add('hidden');
             mainLayout.classList.add('hidden');
-            sidebarContainer.classList.add('hidden');
 
             if (filteredOrders.length === 0) {
                 if (searchTerm.length > 0) {
                     statusMessage.innerHTML = `<div class="p-8 text-center text-gray-500">Nessun ordine trovato.</div>`;
                 } else {
-                    statusMessage.innerHTML = `<div class="p-8 text-center text-gray-500">Inserisci un codice e premi Invio.</div>`;
+                    statusMessage.innerHTML = `<div class="p-8 text-center text-gray-500">Spara un'etichetta o inserisci un codice e premi Invio.</div>`;
                 }
                 statusMessage.classList.remove('hidden');
                 updateTimer();
@@ -688,25 +1393,6 @@ function chiaveTracking(norm) {
             }
 
             mainLayout.classList.remove('hidden');
-
-            const mainOrder = filteredOrders[0];
-            const reportIdx = mainOrder.reportIndex;
-
-            if (reportIdx !== undefined && skuCountsByReport[reportIdx]) {
-                const reportStats = skuCountsByReport[reportIdx];
-                let sidebarHtml = '';
-                new Set(mainOrder.items.map(i => i.sku)).forEach(sku => {
-                    if (sku !== 'N/D') {
-                        sidebarHtml += `
-                            <tr class="border-b border-gray-100 last:border-0">
-                                <td class="py-2 text-brand-orange font-bold text-xs md:text-sm">${esc(sku)}</td>
-                                <td class="py-2 text-right font-bold text-gray-700 text-lg">${reportStats[sku] || 0}</td>
-                            </tr>`;
-                    }
-                });
-                sidebarTbody.innerHTML = sidebarHtml;
-                sidebarContainer.classList.remove('hidden');
-            }
 
             const frag = document.createDocumentFragment();
 
@@ -760,7 +1446,7 @@ function chiaveTracking(norm) {
                     `;
                 }).join('');
 
-                orderCard.innerHTML = `${headerHtml}<div class="grid bg-brand-gray gap-[2px] border-2 border-brand-gray" style="grid-template-columns: repeat(${gridCols}, minmax(0, 1fr));">${itemsHtml}</div>`;
+                orderCard.innerHTML = `${headerHtml}${htmlStriscia(order)}<div class="grid bg-brand-gray gap-[2px] border-2 border-brand-gray" style="grid-template-columns: repeat(${gridCols}, minmax(0, 1fr));">${itemsHtml}</div>`;
                 frag.appendChild(orderCard);
             });
 
