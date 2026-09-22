@@ -75,7 +75,7 @@
 
     <div class="container mx-auto w-full p-2 md:p-4">
 
-        <header class="relative flex items-center justify-center mb-6">
+        <header class="relative flex items-center justify-center mb-4">
             <h1 class="text-3xl md:text-5xl font-bold text-brand-orange tracking-tight">
                 Scannerizza Etichetta
             </h1>
@@ -89,50 +89,47 @@
             </a>
         </header>
 
-        <div class="grid grid-cols-1 lg:grid-cols-[340px_minmax(0,1fr)] gap-4 mb-6 items-start">
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-4 items-start">
 
             <!-- PANNELLO "DA SPARARE" -->
             <aside id="pannello" class="bg-white rounded-2xl shadow-lg overflow-hidden">
-                <div class="bg-brand-gray text-white px-4 py-2 flex items-center justify-between">
-                    <h2 class="font-bold uppercase tracking-wider text-sm">Da sparare</h2>
+                <div class="bg-brand-gray text-white px-4 py-1.5 flex items-center justify-between">
+                    <h2 class="font-bold uppercase tracking-wider text-xs">Da sparare</h2>
                     <div class="flex items-center gap-3">
-                        <button id="btn-suoni" type="button" class="text-lg leading-none opacity-90 hover:opacity-100" title="Suoni attivi / spenti">🔊</button>
-                        <button id="btn-aggiorna" type="button" class="text-xl leading-none opacity-90 hover:opacity-100" title="Ricarica report e scansioni"><span id="ico-aggiorna">↻</span></button>
+                        <span id="cnt-stato" class="text-[11px] opacity-90 whitespace-nowrap"></span>
+                        <button id="btn-suoni" type="button" class="text-base leading-none opacity-90 hover:opacity-100" title="Suoni attivi / spenti">🔊</button>
+                        <button id="btn-aggiorna" type="button" class="text-lg leading-none opacity-90 hover:opacity-100" title="Ricarica report e scansioni"><span id="ico-aggiorna">↻</span></button>
                     </div>
                 </div>
-                <div class="p-4">
-                    <div class="flex items-end gap-3">
-                        <span id="cnt-mancanti" class="text-6xl font-black text-brand-orange leading-none tabular-nums">…</span>
-                        <span id="cnt-label" class="text-sm text-gray-500 mb-1 font-medium">caricamento…</span>
+                <div class="px-4 py-2.5 flex flex-wrap sm:flex-nowrap items-center gap-x-5 gap-y-2">
+                    <div class="flex items-center gap-2 shrink-0">
+                        <span id="cnt-mancanti" class="text-5xl font-black text-brand-orange leading-none tabular-nums">…</span>
+                        <span id="cnt-label" class="text-sm text-gray-500 font-medium leading-tight w-24">caricamento…</span>
                     </div>
-                    <div class="mt-4 h-4 bg-gray-200 rounded-full overflow-hidden">
-                        <div id="cnt-barra" class="h-full bg-brand-orange transition-all duration-500" style="width:0%"></div>
+                    <div class="flex-1 min-w-[180px]">
+                        <div class="h-3 bg-gray-200 rounded-full overflow-hidden">
+                            <div id="cnt-barra" class="h-full bg-brand-orange transition-all duration-500" style="width:0%"></div>
+                        </div>
+                        <div class="mt-1.5 flex items-center gap-2 text-sm">
+                            <span id="cnt-fatti" class="text-gray-600 font-medium whitespace-nowrap"></span>
+                            <span id="cnt-canali" class="flex flex-wrap gap-1 flex-1 min-w-0"></span>
+                            <span id="cnt-perc" class="font-bold text-gray-800 tabular-nums ml-auto"></span>
+                        </div>
                     </div>
-                    <div class="mt-2 flex justify-between items-baseline text-sm">
-                        <span id="cnt-fatti" class="text-gray-600 font-medium"></span>
-                        <span id="cnt-perc" class="font-bold text-gray-800 tabular-nums"></span>
-                    </div>
-                    <div id="cnt-canali" class="mt-3 flex flex-wrap gap-1.5"></div>
                     <button id="btn-mancanti" type="button"
-                            class="mt-4 w-full py-2.5 rounded-lg font-semibold border-2 border-brand-orange text-brand-orange hover:bg-brand-orange hover:text-white transition-colors disabled:opacity-40 disabled:pointer-events-none">
+                            class="shrink-0 px-3 py-1 rounded-lg text-sm font-semibold border-2 border-brand-orange text-brand-orange hover:bg-brand-orange hover:text-white transition-colors disabled:opacity-40 disabled:pointer-events-none">
                         Vedi mancanti
                     </button>
-                    <div class="mt-3 flex items-center justify-between gap-2 text-xs text-gray-400">
-                        <button id="btn-postazione" type="button" class="hover:text-brand-orange truncate" title="Cambia il nome di questa postazione">
-                            Postazione: <span id="nome-postazione" class="font-semibold"></span> ✎
-                        </button>
-                        <span id="cnt-stato" class="whitespace-nowrap"></span>
-                    </div>
-                    <div id="cnt-avviso" class="hidden mt-2 text-xs text-red-600 font-medium"></div>
                 </div>
+                <div id="cnt-avviso" class="hidden px-4 pb-2 text-xs text-red-600 font-medium"></div>
             </aside>
 
             <!-- RICERCA + ESITO -->
-            <div class="bg-white rounded-2xl shadow-lg p-4">
+            <div class="bg-white rounded-2xl shadow-lg p-3">
                 <label for="search-box" class="sr-only">Cerca Tracking</label>
                 <input type="text" id="search-box" autocomplete="off" autocapitalize="off" spellcheck="false"
                        placeholder="Spara l'etichetta o inserisci il tracking..."
-                       class="w-full p-4 border border-gray-300 rounded-lg text-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-brand-orange focus:border-transparent">
+                       class="w-full p-3 border border-gray-300 rounded-lg text-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-brand-orange focus:border-transparent">
                 <div id="load-progress" class="mt-3 hidden">
                     <div class="flex items-center gap-3">
                         <div class="flex-1 h-1.5 bg-gray-200 rounded-full overflow-hidden">
@@ -141,7 +138,7 @@
                         <span id="load-label" class="text-xs text-gray-500 font-medium whitespace-nowrap"></span>
                     </div>
                 </div>
-                <div id="esito" class="hidden mt-3 rounded-xl px-5 py-4 text-xl md:text-2xl font-bold"></div>
+                <div id="esito" class="hidden mt-2 rounded-xl px-4 py-2.5 text-xl md:text-2xl font-bold"></div>
             </div>
         </div>
 
@@ -285,7 +282,6 @@
             esitoBox = document.getElementById('esito');
             modale = document.getElementById('modale-mancanti');
 
-            document.getElementById('nome-postazione').textContent = dispositivo;
             aggiornaIconaSuoni();
 
             // Ricerca reattiva ma non ad ogni singolo carattere: lo scanner "digita"
@@ -341,15 +337,6 @@
                 scriviLS('scan_suoni', suoniAttivi ? '1' : '0');
                 aggiornaIconaSuoni();
                 if (suoniAttivi) suono('ok');
-                searchBox.focus();
-            });
-            document.getElementById('btn-postazione').addEventListener('click', () => {
-                const nuovo = prompt('Nome di questa postazione (compare nelle etichette sparate):', dispositivo);
-                if (nuovo && nuovo.trim()) {
-                    dispositivo = nuovo.trim().slice(0, 30);
-                    scriviLS('scan_dispositivo', dispositivo);
-                    document.getElementById('nome-postazione').textContent = dispositivo;
-                }
                 searchBox.focus();
             });
 
@@ -852,8 +839,8 @@
 
         function testoGiaSparata(s) {
             if (s.t === 'B') return 'Già lavorata prima dell\'attivazione del contatore';
-            if (s.t === 'I') return `Era stata tolta dalla lista (${quando(s.ts)}${s.d ? ' · ' + s.d : ''})`;
-            return `Già sparata ${quando(s.ts)}${s.d ? ' · ' + s.d : ''}`;
+            if (s.t === 'I') return `Era stata tolta dalla lista (${quando(s.ts)})`;
+            return `Già sparata ${quando(s.ts)}`;
         }
 
         async function inviaScansione(voce) {
@@ -1022,7 +1009,7 @@
             const perc = totale ? Math.floor(fatti / totale * 100) : 100;
 
             elN.textContent = n;
-            elN.className = 'text-6xl font-black leading-none tabular-nums ' + (n ? 'text-brand-orange' : 'text-green-600');
+            elN.className = 'text-5xl font-black leading-none tabular-nums ' + (n ? 'text-brand-orange' : 'text-green-600');
             elL.textContent = n === 0 ? 'tutto sparato ✓' : (n === 1 ? 'etichetta da sparare' : 'etichette da sparare');
             elB.style.width = perc + '%';
             elB.className = 'h-full transition-all duration-500 ' + (n ? 'bg-brand-orange' : 'bg-green-500');
@@ -1038,7 +1025,7 @@
             });
             const titoloTemu = Object.entries(perPaese).sort((a, b) => b[1] - a[1]).map(([p, q]) => `${p}: ${q}`).join('\n');
             elC.innerHTML = ORDINE_CANALI.filter(c => perCanale[c]).map(c =>
-                `<span class="px-2 py-0.5 rounded-full bg-orange-50 text-brand-orange text-xs font-bold border border-orange-200" ${c === 'TEMU' ? `title="${esc(titoloTemu)}"` : ''}>${c} ${perCanale[c]}</span>`
+                `<span class="px-1.5 rounded-full bg-orange-50 text-brand-orange text-[11px] font-bold border border-orange-200" ${c === 'TEMU' ? `title="${esc(titoloTemu)}"` : ''}>${c} ${perCanale[c]}</span>`
             ).join('');
             btn.disabled = n === 0;
 
@@ -1060,9 +1047,9 @@
             const el = document.getElementById('cnt-stato');
             if (!el) return;
             if (coda.length) {
-                el.innerHTML = `<span class="text-amber-600 font-semibold" title="Letture salvate su questo PC, verranno inviate appena torna la rete">⏳ ${coda.length} in invio</span>`;
+                el.innerHTML = `<span class="text-amber-200 font-semibold" title="Letture salvate su questo PC, verranno inviate appena torna la rete">⏳ ${coda.length} in invio</span>`;
             } else if (scanPronte && Date.now() - ultimoPoll > POLL_SCANSIONI_MS * 3) {
-                el.innerHTML = '<span class="text-red-500 font-semibold">⚠ non aggiornato</span>';
+                el.innerHTML = '<span class="text-red-200 font-semibold">⚠ non aggiornato</span>';
             } else if (ultimoPoll) {
                 el.textContent = 'agg. ' + oraBreve(ultimoPoll);
             } else {
@@ -1154,7 +1141,7 @@
                 errore: 'bg-red-600 text-white',
                 info:   'bg-gray-100 text-gray-600'
             };
-            esitoBox.className = 'mt-3 rounded-xl px-5 py-4 text-xl md:text-2xl font-bold ' + (stili[tipo] || stili.info);
+            esitoBox.className = 'mt-2 rounded-xl px-4 py-2.5 text-xl md:text-2xl font-bold ' + (stili[tipo] || stili.info);
             esitoBox.textContent = testo;
             void esitoBox.offsetWidth;                           // riavvia l'animazione
             esitoBox.classList.add('lampo');
@@ -1332,11 +1319,11 @@
                 cls = 'bg-red-600 text-white'; testo = '⛔ ORDINE CANCELLATO — NON SPEDIRE';
             } else if (s && s.t === 'S') {
                 cls = 'bg-green-600 text-white';
-                testo = `✓ SPARATA ${quando(s.ts)}${s.d ? ' · ' + esc(s.d) : ''}${s.inAttesa ? ' · invio…' : ''}`;
+                testo = `✓ SPARATA ${quando(s.ts)}${s.inAttesa ? ' · invio…' : ''}`;
                 azione = btn('Annulla');
             } else if (s && s.t === 'I') {
                 cls = 'bg-gray-200 text-gray-700';
-                testo = `Tolta dalla lista ${quando(s.ts)}${s.d ? ' · ' + esc(s.d) : ''}`;
+                testo = `Tolta dalla lista ${quando(s.ts)}`;
                 azione = btn('Rimetti tra le mancanti');
             } else if (s && s.t === 'B') {
                 cls = 'bg-gray-200 text-gray-600'; testo = 'Già lavorata prima dell\'attivazione del contatore';
