@@ -255,7 +255,21 @@
         let searchStartTime = 0;
         let renderTimer = null;
 
-        const scansioni = new Map();                // tracking normalizzato → { ts, t: S|B|I, d, inAttesa }
+        // Registro letture: tracking normalizzato → { ts, t: S|B|I, d, inAttesa }.
+        // I report a volte perdono lo zero iniziale dei tracking numerici (089… → 89…)
+        // quando il foglio li riscrive come numeri: nel registro lo zero iniziale non conta,
+        // così la stessa spedizione resta "sparata" anche se il report cambia forma.
+        function chiaveScan(norm) {
+            const s = String(norm || '');
+            return /^\d+$/.test(s) ? (s.replace(/^0+/, '') || '0') : s;
+        }
+        class MappaScansioni extends Map {
+            get(k) { return super.get(chiaveScan(k)); }
+            set(k, v) { return super.set(chiaveScan(k), v); }
+            has(k) { return super.has(chiaveScan(k)); }
+            delete(k) { return super.delete(chiaveScan(k)); }
+        }
+        const scansioni = new MappaScansioni();
         let scanCiclo = 0, scanOra = 0, scanPronte = false, offsetServer = 0, ultimoPoll = 0;
         let scanInCorso = false, ricaricaInCorso = false, chiusuraInCorso = false, ultimaRicaricaForzata = 0;
         let ultimoContatore = null;
