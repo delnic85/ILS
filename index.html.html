@@ -240,7 +240,9 @@
         // e la stampa successiva riparte da 0 %. Se una stampa arriva prima di aver
         // finito la precedente, il totale semplicemente cresce.
         const GIORNI_VALIDITA_ORDINE = 21;          // ordini più vecchi non contano (rete di sicurezza)
-        const POLL_SCANSIONI_MS = 60000;            // letture delle altre postazioni
+        const POLL_SCANSIONI_MS = 60000;            // letture delle altre postazioni (scheda visibile e in uso)
+        const POLL_INATTIVO_MS = 5 * 60000;         // …se nessuno spara da un po', ogni 5 minuti
+        const INATTIVITA_MS = 15 * 60000;           // dopo 15 minuti senza letture la postazione è "ferma"
         const RICARICA_REPORT_MS = 5 * 60000;       // nuove stampe (il CSV pubblicato si aggiorna ~5 min)
         const RETRY_CODA_MS = 30000;
         const RE_CANCELLATO = /cancellat|annullat|cancel/i;
@@ -274,6 +276,7 @@
         const scansioni = new MappaScansioni();
         let scanCiclo = 0, scanOra = 0, scanPronte = false, offsetServer = 0, ultimoPoll = 0;
         let scanInCorso = false, ricaricaInCorso = false, chiusuraInCorso = false, ultimaRicaricaForzata = 0;
+        let ultimaAttivita = Date.now(), ultimaRicaricaReport = 0;   // per rallentare quando la postazione è ferma
         let ultimoContatore = null;
         let filtroCanale = 'TUTTI';
         let coda = leggiJSON('scan_coda', []);
@@ -328,6 +331,7 @@
                 if (document.visibilityState === 'visible') {
                     setTimeout(() => { if (modale.classList.contains('hidden')) searchBox.focus(); }, 50);
                     if (scanPronte && Date.now() - ultimoPoll > 15000) caricaScansioni(false);
+                    if (R.completo && Date.now() - ultimaRicaricaReport > RICARICA_REPORT_MS) ricaricaReportSilenziosa();
                 }
             };
             document.addEventListener('visibilitychange', rifocalizza);
@@ -429,8 +433,19 @@
             aggiornaContatore();
             svuotaCoda();
 
-            setInterval(() => caricaScansioni(false), POLL_SCANSIONI_MS);
-            setInterval(ricaricaReportSilenziosa, RICARICA_REPORT_MS);
+            // Le chiamate al server partono solo se la scheda è visibile: una scheda dimenticata
+            // aperta su un altro PC non deve interrogare il registro tutta la notte. Se da questa
+            // postazione nessuno spara da 15 minuti si passa a una chiamata ogni 5 minuti; la prima
+            // lettura (o il ritorno sulla scheda) riporta subito al ritmo di una al minuto.
+            setInterval(() => {
+                if (document.visibilityState !== 'visible') return;
+                const ferma = Date.now() - ultimaAttivita > INATTIVITA_MS;
+                if (Date.now() - ultimoPoll >= (ferma ? POLL_INATTIVO_MS : POLL_SCANSIONI_MS)) caricaScansioni(false);
+            }, 15000);
+            setInterval(() => {
+                if (document.visibilityState !== 'visible') return;
+                if (Date.now() - ultimaRicaricaReport >= RICARICA_REPORT_MS) ricaricaReportSilenziosa();
+            }, 30000);
             setInterval(svuotaCoda, RETRY_CODA_MS);
         }
 
@@ -438,6 +453,7 @@
         // cercare mentre arrivano gli altri); nelle ricariche costruisce un archivio
         // nuovo e lo sostituisce solo se tutti i report sono arrivati.
         async function caricaReport(silenzioso) {
+            ultimaRicaricaReport = Date.now();
             const A = silenzioso ? nuovoArchivio() : R;
             let done = 0;
             const total = NOMI_SCHEDE.length;
@@ -805,6 +821,9 @@
 
         function gestisciSparo(letto) {
             if (!letto) return;
+            const eraFerma = Date.now() - ultimaAttivita > INATTIVITA_MS;
+            ultimaAttivita = Date.now();
+            if (eraFerma && scanPronte && Date.now() - ultimoPoll > 15000) caricaScansioni(false);   // torna al ritmo normale e si allinea subito
             const o = trovaEsatto(letto);
             if (!o) {
                 if (R.caricati < NOMI_SCHEDE.length && !R.completo) {
@@ -1064,7 +1083,7 @@
             if (!el) return;
             if (coda.length) {
                 el.innerHTML = `<span class="text-amber-200 font-semibold" title="Letture salvate su questo PC, verranno inviate appena torna la rete">⏳ ${coda.length} in invio</span>`;
-            } else if (scanPronte && Date.now() - ultimoPoll > POLL_SCANSIONI_MS * 3) {
+            } else if (scanPronte && Date.now() - ultimoPoll > (Date.now() - ultimaAttivita > INATTIVITA_MS ? POLL_INATTIVO_MS : POLL_SCANSIONI_MS) * 3) {
                 el.innerHTML = '<span class="text-red-200 font-semibold">⚠ non aggiornato</span>';
             } else if (ultimoPoll) {
                 el.textContent = 'agg. ' + oraBreve(ultimoPoll);
