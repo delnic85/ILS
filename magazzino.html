@@ -91,7 +91,7 @@ a{color:inherit}
 
 .g-inv{grid-template-columns:52px minmax(0,1fr) 62px 80px}
 .g-bs {grid-template-columns:44px minmax(0,1fr) 46px 46px 66px}
-.g-ro {grid-template-columns:44px minmax(0,1fr) 56px 46px 72px}
+.g-ro {grid-template-columns:44px minmax(0,1fr) 54px 54px 62px}
 .md{display:none}
 .mo{display:inline}
 @media(min-width:768px){
@@ -99,7 +99,7 @@ a{color:inherit}
   .mo{display:none}
   .g-inv{grid-template-columns:76px minmax(0,1fr) 190px 130px 110px 170px}
   .g-bs {grid-template-columns:64px minmax(0,1fr) 90px 90px 90px 90px 120px}
-  .g-ro {grid-template-columns:64px minmax(0,1fr) 110px 100px 160px}
+  .g-ro {grid-template-columns:64px minmax(0,1fr) 72px 64px 92px 72px 64px 92px 118px}
   .hd,.row{padding:10px 14px;gap:12px}
 }
 
@@ -122,6 +122,18 @@ a{color:inherit}
 .wk{font-size:17px;font-weight:900;text-align:right;line-height:1.1}
 .wk.r{color:var(--red)}.wk.a{color:var(--amb)}.wk.g{color:var(--grn)}.wk.dim{color:var(--mute);font-weight:600}
 .wk small{display:block;font-size:10px;font-weight:600;color:var(--mute)}
+/* riordino: gruppi FBM / FBA / totale */
+.hd.g-ro .gl{display:block;font-size:10px;font-weight:600;opacity:.8;letter-spacing:.3px}
+.g-ro .fbm{background:rgba(253,153,31,.07)}
+.g-ro .fba{background:rgba(35,110,200,.07)}
+.g-ro > .fbm,.g-ro > .fba,.g-ro > .tot{align-self:stretch;display:flex;flex-direction:column;justify-content:center;align-items:flex-end;padding:0 6px;margin:-8px 0}
+.hd.g-ro > .fbm,.hd.g-ro > .fba,.hd.g-ro > .tot{margin:-9px 0;padding:9px 6px;background:none}
+.hd.g-ro > .fbm{box-shadow:inset 0 -3px 0 #FD991F}.hd.g-ro > .fba{box-shadow:inset 0 -3px 0 #4a90d9}.hd.g-ro > .tot{box-shadow:inset 0 -3px 0 #fff}
+.g-ro .tot .wk{font-size:19px}
+.g-ro .qty.sm{font-size:18px}
+.g-ro .in{font-size:10px;color:var(--mute);font-weight:600}
+@media(max-width:767px){.g-ro > .md{display:none}}
+@media(min-width:768px){.g-ro > .fbm,.g-ro > .fba,.g-ro > .tot{margin:-10px 0}.hd.g-ro > .fbm,.hd.g-ro > .fba,.hd.g-ro > .tot{margin:-10px 0;padding:10px 6px}.g-ro .qty.sm{font-size:22px}.g-ro .tot .wk{font-size:22px}}
 .bar-w{height:4px;background:#eceeed;border-radius:2px;margin-top:5px;overflow:hidden;max-width:220px}
 .bar-w i{display:block;height:100%;border-radius:2px;background:var(--red)}
 .bar-w i.a{background:var(--amb)}
@@ -281,7 +293,8 @@ const CFG = {
 };
 // Posizioni fisse nella scheda MAGAZZINO (0 = colonna A)
 const COL = { ASIN:0, SKU_FBA:1, SKU:2, CAT:4, BRAND:5, QTY:7, SHELF:8,
-              FBA7:12, TEMU7:15, V30:16, V365:17, IMG:26, FORNITORE:28 }; // 21/09/2026: colonna K eliminata (M 7G FBA, P 7G TEMU, Q 30G TEMU, R ANNO, AA IMAGE URL, AC FORNITORE)
+              ENTR:10, FBA_QTY:11, FBA7:12, FBA30:14, TEMU7:15, V30:16, V365:17, IMG:26, FORNITORE:28 }; // 21/09/2026: colonna K eliminata (K IN ENTR., L FBA, M 7G FBA, N WEEK, O 30G FBA, P 7G FBM, Q 30G FBM, R ANNO FBM, AA IMAGE URL, AC FORNITORE)
+// 24/09/2026: P/Q/R rinominate "FBM" (TEMU + vendite registrate a mano/scanner); il codice resta TEMU7/V30/V365 per posizione
 // LOG_VENDITE: A data, B ASIN, C quantità, D origine (TEMU / AMAZON / TIKTOK)
 
 /* ============================================================ */
@@ -408,12 +421,20 @@ function parseInv(rows, sales) {
     const q30 = cleanQty(c[COL.V30]), q365 = cleanQty(c[COL.V365]);
     const s = sales.get(asin); let q24 = 0, ch = {}, extra7 = 0;
     if (s) { q24 = s.q24; ch = s.ch; for (const k in ch) if (k !== 'TEMU') extra7 += ch[k]; }
-    // 7 giorni = colonne del foglio (FBA + TEMU) + canali che il foglio non conta (Amazon FBM, TikTok) presi dal log
-    const q7 = fba7 + temu7 + extra7;
-    const weeks = q7 > 0 ? qty / q7 : (qty <= 0 && q30 > 0 ? 0 : Infinity);
+    // FBM = magazzino (H) contro vendite FBM: colonna P + canali che P non conta (AMAZON/TIKTOK nel log)
+    const q7fbm = temu7 + extra7;
+    const wFbm = q7fbm > 0 ? Math.max(0, qty) / q7fbm : (qty <= 0 && q30 > 0 ? 0 : Infinity);
+    // FBA = giacenza Amazon (L) contro 7G FBA (M): è la colonna N (WEEK) del foglio, ricalcolata qui
+    const fbaQty = cleanQty(c[COL.FBA_QTY]), entr = cleanQty(c[COL.ENTR]), fba30 = cleanQty(c[COL.FBA30]);
+    const wFba = fba7 > 0 ? Math.max(0, fbaQty) / fba7 : (fbaQty <= 0 && fba30 > 0 ? 0 : Infinity);
+    // Totale = tutta la merce (magazzino + FBA + in entrata) contro tutte le vendite: i due canali si
+    // svuotano in parallelo, quindi le settimane NON si sommano (1 sett. FBM + 1 sett. FBA = 1 sett., non 2)
+    const q7 = fba7 + q7fbm, stockTot = Math.max(0, qty) + Math.max(0, fbaQty) + Math.max(0, entr);
+    const weeks = q7 > 0 ? stockTot / q7 : (stockTot <= 0 && (q30 > 0 || fba30 > 0) ? 0 : Infinity);
     const brand = g('BRAND'), cat = g('CAT'), shelf = g('SHELF'), forn = g('FORNITORE'), skuFba = g('SKU_FBA');
     out.push({ row: i + 1, sku, asin, skuFba, brand, cat, shelf, forn, img: g('IMG'),
       qty, q24, q7, fba7, temu7, extra7, ch, q30, q365, weeks,
+      q7fbm, wFbm, fbaQty, entr, fba30, wFba, stockTot,
       search: [sku, skuFba, asin, brand, cat, shelf, forn].join(' ').toLowerCase() });
   }
   return out;
@@ -427,7 +448,7 @@ function applyFilters() {
     (!st.shelf || p.shelf === st.shelf) && (!st.forn || p.forn === st.forn) &&
     toks.every(t => p.search.includes(t)));
   if (st.tab === 'bs') list = list.filter(p => p.q7 > 0 || p.q24 > 0);
-  else if (st.tab === 'ro') list = list.filter(p => st.onlyOut ? (p.qty <= 0 && (p.q7 > 0 || p.q30 > 0)) : p.weeks < st.thr);
+  else if (st.tab === 'ro') list = list.filter(p => st.onlyOut ? (p.stockTot <= 0 && (p.q7 > 0 || p.q30 > 0 || p.fba30 > 0)) : p.weeks < st.thr);
   const { k, asc } = st.sort[st.tab];
   const str = ['sku', 'shelf', 'brand', 'cat', 'forn'].includes(k);
   list.sort((a, b) => {
@@ -457,7 +478,12 @@ function headerHTML() {
   const h = (key, label, cls = '') => `<span class="s ${cls} ${k === key ? 'on' : ''}" data-sort="${key}">${label}${k === key ? (asc ? ' ↑' : ' ↓') : ''}</span>`;
   if (st.tab === 'inv') return `<div class="hd g-inv"><span></span>${h('sku', 'Articolo')}${h('cat', 'Categoria', 'md')}${h('forn', 'Fornitore', 'md')}${h('qty', 'Qtà', 'num')}${h('shelf', 'Scaffale')}</div>`;
   if (st.tab === 'bs') return `<div class="hd g-bs"><span></span>${h('sku', 'Articolo')}${h('q24', '24h', 'num')}${h('q7', '7 gg', 'num')}${h('q30', '30 gg', 'num md')}${h('q365', '365 gg', 'num md')}${h('weeks', 'Autonomia', 'num')}</div>`;
-  return `<div class="hd g-ro"><span></span>${h('sku', 'Articolo')}${h('qty', 'Qtà', 'num')}${h('q7', '7 gg', 'num')}${h('weeks', 'Autonomia', 'num')}</div>`;
+  const g = (grp, key, top, label, cls = '') => `<span class="s num ${grp} ${cls} ${k === key ? 'on' : ''}" data-sort="${key}"><span class="gl">${top}</span>${label}${k === key ? (asc ? ' ↑' : ' ↓') : ''}</span>`;
+  const AUT = '<span class="md">Autonomia</span><span class="mo">Aut.</span>';
+  return `<div class="hd g-ro"><span></span>${h('sku', 'Articolo')}` +
+    g('fbm', 'qty', 'FBM', 'Qtà', 'md') + g('fbm', 'q7fbm', 'FBM', '7 gg', 'md') + g('fbm', 'wFbm', 'FBM', AUT) +
+    g('fba', 'fbaQty', 'FBA', 'Qtà', 'md') + g('fba', 'fba7', 'FBA', '7 gg', 'md') + g('fba', 'wFba', 'FBA', AUT) +
+    g('tot', 'weeks', 'TOTALE', AUT) + `</div>`;
 }
 function imgHTML(p) {
   return p.img
@@ -470,11 +496,11 @@ function infoHTML(p, bar) {
   return `<div class="info"><div class="sku">${esc(p.sku)}</div><div class="brand">${esc(p.brand)}</div>
     <div class="sub"><span class="mo">${esc(p.cat)}${p.forn ? ' – ' + esc(p.forn) : ''}</span><span class="md">${esc(p.asin)}</span></div>${b}</div>`;
 }
-function wkHTML(p) {
-  if (!isFinite(p.weeks)) return `<div class="wk dim">—</div>`;
-  const c = p.weeks < 2 ? 'r' : p.weeks < 4 ? 'a' : 'g';
-  if (p.qty <= 0) return `<div class="wk r">0<small>esaurito</small></div>`;
-  return `<div class="wk ${c}">${p.weeks.toFixed(1)}<small>≈ ${Math.round(p.weeks * 7)} gg</small></div>`;
+function wkHTML(p, w = p.weeks, q = p.qty) {
+  if (!isFinite(w)) return `<div class="wk dim">—</div>`;
+  const c = w < 2 ? 'r' : w < 4 ? 'a' : 'g';
+  if (q <= 0) return `<div class="wk r">0<small>esaurito</small></div>`;
+  return `<div class="wk ${c}">${w.toFixed(1)}<small>≈ ${Math.round(w * 7)} gg</small></div>`;
 }
 function rowHTML(p, i) {
   const qcls = p.qty <= 0 ? 'z' : (p.weeks < 2 ? 'low' : '');
@@ -484,8 +510,15 @@ function rowHTML(p, i) {
   if (st.tab === 'bs') return `<div class="row g-bs" data-i="${i}">${imgHTML(p)}${infoHTML(p)}
     <div class="n hot">${fmt(p.q24)}</div><div class="n">${fmt(p.q7)}</div>
     <div class="n dim md">${fmt(p.q30)}</div><div class="n dim md">${fmt(p.q365)}</div>${wkHTML(p)}</div>`;
+  const fcls = p.fbaQty <= 0 ? 'z' : (p.wFba < 2 ? 'low' : '');
+  const qfbm = p.qty <= 0 ? 'z' : (p.wFbm < 2 ? 'low' : '');
   return `<div class="row g-ro ${p.weeks < 2 ? 'alert' : ''}" data-i="${i}">${imgHTML(p)}${infoHTML(p, true)}
-    <div class="qty ${qcls}">${fmt(p.qty)}</div><div class="n">${fmt(p.q7)}</div>${wkHTML(p)}</div>`;
+    <div class="fbm md"><div class="qty sm ${qfbm}">${fmt(p.qty)}</div></div><div class="fbm md"><div class="n ${p.q7fbm ? '' : 'dim'}">${fmt(p.q7fbm)}</div></div>
+    <div class="fbm">${wkHTML(p, p.wFbm, p.q7fbm > 0 || p.q30 > 0 ? p.qty : 1)}</div>
+    <div class="fba md"><div class="qty sm ${p.fba7 || p.fbaQty ? fcls : ''}">${fmt(p.fbaQty)}</div>${p.entr ? `<div class="in">+${fmt(p.entr)} in arrivo</div>` : ''}</div>
+    <div class="fba md"><div class="n ${p.fba7 ? '' : 'dim'}">${fmt(p.fba7)}</div></div>
+    <div class="fba">${wkHTML(p, p.wFba, p.fba7 > 0 || p.fba30 > 0 ? p.fbaQty : 1)}</div>
+    <div class="tot">${wkHTML(p, p.weeks, p.stockTot)}</div></div>`;
 }
 function appendChunk() {
   if (shown >= filtered.length) return;
@@ -523,9 +556,14 @@ function openModal(p) {
   $('m-shelf').textContent = p.shelf || '—';
   $('m-24').textContent = fmt(p.q24); $('m-7').textContent = fmt(p.q7); $('m-30').textContent = fmt(p.q30); $('m-365').textContent = fmt(p.q365);
   const a = $('m-auto');
-  if (!isFinite(p.weeks)) { a.className = 'auto'; a.innerHTML = 'Nessuna vendita negli ultimi 7 giorni<small>Autonomia non calcolabile</small>'; }
-  else if (p.qty <= 0) { a.className = 'auto r'; a.innerHTML = 'Esaurito<small>Ha venduto di recente e la giacenza è a zero</small>'; }
-  else { a.className = 'auto ' + (p.weeks < 2 ? 'r' : p.weeks < 4 ? '' : 'g'); a.innerHTML = `Autonomia ${p.weeks.toFixed(1)} settimane<small>≈ ${Math.round(p.weeks * 7)} giorni al ritmo degli ultimi 7</small>`; }
+  const wt = w => isFinite(w) ? w.toFixed(1) + ' sett.' : '—';
+  const det = `Magazzino ${fmt(p.qty)} pz, FBM ${fmt(p.q7fbm)}/7gg → ${wt(p.wFbm)} · FBA ${fmt(p.fbaQty)} pz${p.entr ? ' (+' + fmt(p.entr) + ' in arrivo)' : ''}, ${fmt(p.fba7)}/7gg → ${wt(p.wFba)}`;
+  // pezzi per coprire 8 settimane al ritmo attuale (tutti i canali), tolta la merce che c'è già
+  const serve = p.q7 > 0 ? Math.max(0, Math.ceil(p.q7 * 8) - p.stockTot) : 0;
+  const ord = serve ? `<br>Per coprire 8 settimane servono ~${fmt(serve)} pz` : '';
+  if (!isFinite(p.weeks)) { a.className = 'auto'; a.innerHTML = `Nessuna vendita negli ultimi 7 giorni<small>${det}</small>`; }
+  else if (p.stockTot <= 0) { a.className = 'auto r'; a.innerHTML = `Esaurito ovunque${ord}<small>${det}</small>`; }
+  else { a.className = 'auto ' + (p.weeks < 2 ? 'r' : p.weeks < 4 ? '' : 'g'); a.innerHTML = `Autonomia totale ${p.weeks.toFixed(1)} settimane (≈ ${Math.round(p.weeks * 7)} giorni)${ord}<small>${det}</small>`; }
   const ch = [];
   if (p.fba7) ch.push(`FBA ${fmt(p.fba7)}`);
   if (p.temu7) ch.push(`TEMU ${fmt(p.temu7)}`);
@@ -556,7 +594,7 @@ function toast(msg) { const t = $('toast'); t.textContent = msg; t.classList.add
 /* ---------- eventi ---------- */
 $('list').addEventListener('click', e => {
   const s = e.target.closest('.s');
-  if (s) { const o = st.sort[st.tab]; if (o.k === s.dataset.sort) o.asc = !o.asc; else { o.k = s.dataset.sort; o.asc = !['q24', 'q7', 'q30', 'q365', 'qty'].includes(o.k); } render(); return; }
+  if (s) { const o = st.sort[st.tab]; if (o.k === s.dataset.sort) o.asc = !o.asc; else { o.k = s.dataset.sort; o.asc = !['q24', 'q7', 'q30', 'q365', 'qty', 'q7fbm', 'fba7', 'fbaQty'].includes(o.k); } render(); return; }
   const r = e.target.closest('.row'); if (r) openModal(filtered[+r.dataset.i]);
 });
 $('sort-reset').addEventListener('click', () => { st.sort[st.tab] = st.tab === 'inv' ? { k: 'row', asc: true } : st.tab === 'bs' ? { k: 'q24', asc: false } : { k: 'weeks', asc: true }; render(); });
