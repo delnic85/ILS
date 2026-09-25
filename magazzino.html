@@ -740,13 +740,22 @@ function device() {
 function session() {
   try { const s = JSON.parse(ls.get(CFG.SESS_KEY) || 'null'); return s && s.scade > Date.now() ? s : null; } catch (e) { return null; }
 }
+// Una chiamata allo script; se la risposta non arriva (rete, Google lento, pagina d'errore) riprova fino a 3 volte.
+// Ogni chiamata ha un codice "rid": se lo script l'aveva già eseguita, non la rifà (niente vendite doppie).
 async function gas(body) {
-  const ctl = new AbortController(); const t = setTimeout(() => ctl.abort(), 30000);
-  try {
-    const r = await fetch(CFG.GAS_URL, { method: 'POST', redirect: 'follow', body: JSON.stringify(Object.assign({ app: 'magazzino', dispositivo: device() }, body)), signal: ctl.signal });
-    if (!r.ok) throw new Error('HTTP ' + r.status);
-    return await r.json();
-  } finally { clearTimeout(t); }
+  const payload = JSON.stringify(Object.assign({ app: 'magazzino', dispositivo: device(), rid: Date.now().toString(36) + Math.random().toString(36).slice(2, 8) }, body));
+  let last;
+  for (let i = 0; i < 3; i++) {
+    if (i) await new Promise(r => setTimeout(r, i * 1500));
+    const ctl = new AbortController(); const t = setTimeout(() => ctl.abort(), 25000);
+    try {
+      const r = await fetch(CFG.GAS_URL, { method: 'POST', redirect: 'follow', body: payload, signal: ctl.signal });
+      if (!r.ok) throw new Error('HTTP ' + r.status);
+      return JSON.parse(await r.text());
+    } catch (e) { last = e; console.warn('MAG chiamata non riuscita, tentativo ' + (i + 1), e); }
+    finally { clearTimeout(t); }
+  }
+  throw last;
 }
 function lockedUntil() { const u = +(ls.get(CFG.LOCK_KEY) || 0); return u > Date.now() ? u : 0; }
 function kickOut(msg) {
