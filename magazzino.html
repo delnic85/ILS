@@ -20,6 +20,8 @@
   --top-h:0px; --r:14px;
 }
 *{box-sizing:border-box}
+[hidden]{display:none!important}
+@media(max-width:380px){#st-txt{display:none}}
 html{-webkit-text-size-adjust:100%}
 body{margin:0;background:var(--bg);color:var(--ink);
   font:15px/1.35 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",sans-serif;
@@ -188,6 +190,47 @@ a{color:inherit}
 .acts a[hidden]{display:none}
 .toast{position:fixed;left:50%;bottom:24px;transform:translate(-50%,20px);background:var(--ink);color:#fff;padding:10px 16px;border-radius:999px;font-weight:700;font-size:13px;opacity:0;transition:.2s;z-index:60;pointer-events:none;white-space:nowrap}
 .toast.on{opacity:1;transform:translate(-50%,0)}
+/* ---- accesso con PIN ---- */
+#gate{position:fixed;inset:0;z-index:100;background:var(--bg);display:flex;align-items:center;justify-content:center;padding:20px;
+  padding-top:max(20px,env(safe-area-inset-top));padding-bottom:max(20px,env(safe-area-inset-bottom))}
+#gate[hidden]{display:none}
+.gate-box{width:100%;max-width:340px;text-align:center}
+.gate-box .logo{justify-content:center;font-size:20px;margin-bottom:6px}
+.gate-msg{color:var(--mute);font-size:14px;min-height:40px;margin:6px 0 14px}
+.gate-msg.err{color:var(--red);font-weight:700}
+.dots{display:flex;justify-content:center;gap:16px;margin-bottom:22px}
+.dots i{width:16px;height:16px;border-radius:50%;border:2px solid #b9c1bf;display:block;transition:.12s}
+.dots i.on{background:var(--or);border-color:var(--or)}
+.dots.shake{animation:shake .35s}
+@keyframes shake{25%{transform:translateX(-8px)}50%{transform:translateX(8px)}75%{transform:translateX(-4px)}}
+.pad{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
+.pad button{height:64px;border-radius:16px;background:#fff;border:1px solid var(--line);font-size:26px;font-weight:700;box-shadow:0 1px 2px rgba(0,0,0,.05)}
+.pad button:active{background:var(--or-l)}
+.pad button.ghost{background:none;border:0;box-shadow:none;font-size:15px;color:var(--mute)}
+.pad button:disabled{opacity:.35}
+.gate-lock{font-size:48px;margin-bottom:6px}
+#btn-exit{padding:6px 10px;border-radius:999px;border:1px solid var(--line);background:#fff;font-size:12px;font-weight:700;color:var(--mute)}
+
+/* ---- modifica quantità / scaffale (scheda articolo) ---- */
+.edit{margin-top:14px;border-top:1px solid var(--line);padding-top:12px}
+.edit h3{margin:0 0 8px;font-size:13px;color:var(--mute);text-transform:uppercase;letter-spacing:.04em}
+.seg{display:grid;grid-template-columns:1fr 1fr;background:#eceeed;border-radius:12px;padding:3px;margin-bottom:10px}
+.seg button{padding:10px 6px;border-radius:10px;font-weight:700;font-size:14px;color:var(--mute)}
+.seg button.on{background:#fff;color:var(--ink);box-shadow:0 1px 2px rgba(0,0,0,.08)}
+.step{display:grid;grid-template-columns:56px 1fr 56px;gap:8px}
+.step button{height:56px;border-radius:14px;background:#f4f6f5;border:1px solid var(--line);font-size:28px;font-weight:800}
+.step input,.shelf-in{height:56px;width:100%;border:2px solid var(--line);border-radius:14px;text-align:center;font-size:26px;font-weight:900;
+  color:var(--ink);background:#fff;-moz-appearance:textfield}
+.step input::-webkit-outer-spin-button,.step input::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
+.shelf-in{font-size:22px;text-transform:uppercase;color:var(--or)}
+.step input:focus,.shelf-in:focus{border-color:var(--or);outline:0}
+.hint{font-size:12px;color:var(--mute);margin:6px 2px 0;min-height:16px}
+.hint.err{color:var(--red);font-weight:700}
+.save{width:100%;margin-top:10px;height:52px;border-radius:14px;background:var(--or);color:#fff;font-weight:800;font-size:16px}
+.save:disabled{opacity:.5}
+.save.sec{background:#fff;color:var(--ink);border:1px solid var(--line)}
+.edit-row{margin-bottom:16px}
+
 @media(prefers-reduced-motion:reduce){*{transition:none!important;animation-duration:1.5s!important}}
 </style>
 </head>
@@ -203,6 +246,7 @@ a{color:inherit}
         </button>
       </div>
       <a class="scan" href="https://delnic85.github.io/ILS/index.html">Scanner</a>
+      <button id="btn-exit" title="Esci (richiede di nuovo il PIN)">Esci</button>
     </div>
     <nav class="tabs" id="tabs">
       <button data-tab="inv" class="on">Magazzino</button>
@@ -268,6 +312,25 @@ a{color:inherit}
     </div>
     <div class="auto" id="m-auto"></div>
     <div class="chan" id="m-chan"></div>
+    <div class="edit" id="m-edit">
+      <div class="edit-row">
+        <h3>Quantità in magazzino</h3>
+        <div class="seg" id="q-mode"><button data-m="IMPOSTA" class="on">Conta (rettifica)</button><button data-m="VENDITA">Vendita</button></div>
+        <div class="step">
+          <button id="q-minus" aria-label="Meno uno">−</button>
+          <input id="q-val" type="number" inputmode="numeric" pattern="[0-9]*" min="0" step="1" enterkeyhint="done">
+          <button id="q-plus" aria-label="Più uno">+</button>
+        </div>
+        <div class="hint" id="q-hint"></div>
+        <button class="save" id="q-save">Salva quantità</button>
+      </div>
+      <div class="edit-row">
+        <h3>Scaffale</h3>
+        <input class="shelf-in" id="s-val" type="text" autocomplete="off" autocorrect="off" autocapitalize="characters" spellcheck="false" enterkeyhint="done" maxlength="60">
+        <div class="hint" id="s-hint"></div>
+        <button class="save" id="s-save">Salva scaffale</button>
+      </div>
+    </div>
     <div class="acts">
       <button class="pri" id="m-copy">Copia SKU</button>
       <a id="m-amz" target="_blank" rel="noopener">Amazon</a>
@@ -276,6 +339,21 @@ a{color:inherit}
   </div>
 </div>
 <div class="toast" id="toast"></div>
+
+<div id="gate" hidden>
+  <div class="gate-box">
+    <div class="logo"><i></i>Magazzino</div>
+    <div id="gate-lock" class="gate-lock" hidden>🔒</div>
+    <div class="gate-msg" id="gate-msg">Inserisci il PIN</div>
+    <div class="dots" id="dots"><i></i><i></i><i></i><i></i></div>
+    <div class="pad" id="pad">
+      <button>1</button><button>2</button><button>3</button>
+      <button>4</button><button>5</button><button>6</button>
+      <button>7</button><button>8</button><button>9</button>
+      <button class="ghost" data-k="c">Cancella</button><button>0</button><button class="ghost" data-k="b">⌫</button>
+    </div>
+  </div>
+</div>
 
 <script>
 /* ============================================================
@@ -289,7 +367,10 @@ const CFG = {
   AMAZON: 'https://www.amazon.it/dp/',
   CACHE_KEY: 'ils_magazzino_v2',
   CACHE_MAX_MIN: 180,       // dopo 3 ore la copia locale non viene più mostrata
-  CHUNK: 60                 // righe disegnate per volta
+  CHUNK: 60,                // righe disegnate per volta
+  GAS_URL: 'https://script.google.com/macros/s/AKfycbx2-YY947r-OmN2j8ELJULRSQzgY_1Ue-inVu9NQBhnc7KJP1eVhOb4axrmcDwa00U/exec', // web app del foglio (stessa dello Scanner)
+  SESS_KEY: 'ils_mag_sess', LOCK_KEY: 'ils_mag_lock', TRY_KEY: 'ils_mag_try', DEV_KEY: 'ils_mag_dev', MOD_KEY: 'ils_mag_mod',
+  MAX_TRY: 3, LOCK_MIN: 30, MOD_MIN: 10  // 3 PIN sbagliati = telefono bloccato 30 min; modifiche locali tenute 10 min (ritardo del CSV)
 };
 // Posizioni fisse nella scheda MAGAZZINO (0 = colonna A)
 const COL = { ASIN:0, SKU_FBA:1, SKU:2, CAT:4, BRAND:5, QTY:7, SHELF:8,
@@ -312,6 +393,7 @@ const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': 
 
 /* ---------- caricamento ---------- */
 async function init() {
+  if (!(await gateOk())) return;          // niente dati finché il PIN non è giusto
   const cached = readCache();
   if (cached) build(cached.inv, cached.log, cached.ts, true);
   await refresh(!cached);
@@ -342,6 +424,7 @@ function build(invText, logText, ts, fromCache) {
   const t0 = performance.now();
   const sales = parseLog(parseCSV(logText));
   db = parseInv(parseCSV(invText), sales);
+  applyMods();
   populateFilters();
   lastTs = ts;
   $('loading').hidden = true; $('err').hidden = true;
@@ -571,6 +654,7 @@ function openModal(p) {
   $('m-chan').innerHTML = ch.length ? ch.map(x => `<span>${esc(x)}</span>`).join('') : '';
   $('m-amz').hidden = !p.asin; $('m-amz').href = p.asin ? CFG.AMAZON + p.asin : '#';
   $('m-sheet').href = `https://docs.google.com/spreadsheets/d/${CFG.SHEET_ID}/edit#gid=${CFG.GID_MAG}&range=A${p.row}`;
+  editFill(p);
   $('ov').classList.add('on'); document.body.style.overflow = 'hidden';
   history.pushState({ m: 1 }, '');
 }
@@ -635,7 +719,192 @@ addEventListener('keydown', e => {
 const measureTop = () => document.documentElement.style.setProperty('--top-h', $('top').offsetHeight + 'px');
 new ResizeObserver(measureTop).observe($('top')); measureTop();
 // Se la pagina torna in primo piano dopo un po', ricarica da sola
-document.addEventListener('visibilitychange', () => { if (!document.hidden && lastTs && Date.now() - lastTs > 10 * 60000) refresh(false); });
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden) return;
+  if (!session()) { if ($('gate').hidden) kickOut('Sessione scaduta: rimetti il PIN.'); return; }
+  if (lastTs && Date.now() - lastTs > 10 * 60000) refresh(false);
+});
+
+/* ============================================================
+   ACCESSO CON PIN + MODIFICHE (quantità / scaffale)
+   Il PIN lo controlla lo script del foglio (non è scritto qui: la pagina è pubblica).
+   ============================================================ */
+const ls = { get(k) { try { return localStorage.getItem(k); } catch (e) { return null; } },
+             set(k, v) { try { localStorage.setItem(k, v); } catch (e) {} },
+             del(k) { try { localStorage.removeItem(k); } catch (e) {} } };
+function device() {
+  let d = ls.get(CFG.DEV_KEY);
+  if (!d) { d = 'tel-' + Math.random().toString(36).slice(2, 10); ls.set(CFG.DEV_KEY, d); }
+  return d;
+}
+function session() {
+  try { const s = JSON.parse(ls.get(CFG.SESS_KEY) || 'null'); return s && s.scade > Date.now() ? s : null; } catch (e) { return null; }
+}
+async function gas(body) {
+  const ctl = new AbortController(); const t = setTimeout(() => ctl.abort(), 30000);
+  try {
+    const r = await fetch(CFG.GAS_URL, { method: 'POST', redirect: 'follow', body: JSON.stringify(Object.assign({ app: 'magazzino', dispositivo: device() }, body)), signal: ctl.signal });
+    if (!r.ok) throw new Error('HTTP ' + r.status);
+    return await r.json();
+  } finally { clearTimeout(t); }
+}
+function lockedUntil() { const u = +(ls.get(CFG.LOCK_KEY) || 0); return u > Date.now() ? u : 0; }
+function kickOut(msg) {
+  // fuori: via la sessione e la copia locale dei dati, schermata di blocco
+  ls.del(CFG.SESS_KEY); ls.del(CFG.CACHE_KEY); ls.del(CFG.MOD_KEY);
+  db = []; filtered = []; $('list').innerHTML = ''; closeModal();
+  showGate(msg, true);
+}
+let pin = '', gateResolve = null, gateBusy = false;
+function showGate(msg, err) {
+  $('gate').hidden = false; document.body.style.overflow = 'hidden';
+  const lu = lockedUntil();
+  $('gate-lock').hidden = !lu; $('pad').style.visibility = lu ? 'hidden' : ''; $('dots').style.visibility = lu ? 'hidden' : '';
+  if (lu) { const m = Math.ceil((lu - Date.now()) / 60000); setGateMsg(`Troppi PIN sbagliati.<br>Pagina bloccata su questo telefono per ${m} minut${m === 1 ? 'o' : 'i'}.`, true); setTimeout(() => showGate(), Math.min(60000, lu - Date.now() + 500)); return; }
+  pin = ''; drawDots(); setGateMsg(msg || 'Inserisci il PIN', err);
+}
+function setGateMsg(h, err) { $('gate-msg').innerHTML = h; $('gate-msg').classList.toggle('err', !!err); }
+function drawDots() { [...$('dots').children].forEach((d, i) => d.classList.toggle('on', i < pin.length)); }
+function gateOk() {
+  if (session() && !lockedUntil()) { $('gate').hidden = true; return Promise.resolve(true); }
+  return new Promise(res => { gateResolve = res; showGate(); });
+}
+async function tryPin() {
+  gateBusy = true; setGateMsg('Controllo…');
+  try {
+    const r = await gas({ azione: 'login', pin });
+    if (r.ok) {
+      ls.set(CFG.SESS_KEY, JSON.stringify({ gettone: r.gettone, scade: r.scade })); ls.del(CFG.TRY_KEY);
+      $('gate').hidden = true; document.body.style.overflow = '';
+      if (gateResolve) { const f = gateResolve; gateResolve = null; f(true); } else if (!db.length) init();
+      return;
+    }
+    const n = +(ls.get(CFG.TRY_KEY) || 0) + 1; ls.set(CFG.TRY_KEY, String(n));
+    if (r.bloccato || n >= CFG.MAX_TRY) {
+      ls.set(CFG.LOCK_KEY, String(Date.now() + CFG.LOCK_MIN * 60000)); ls.del(CFG.TRY_KEY);
+      kickOut(); return;
+    }
+    $('dots').classList.remove('shake'); void $('dots').offsetWidth; $('dots').classList.add('shake');
+    if (navigator.vibrate) navigator.vibrate(200);
+    pin = ''; drawDots();
+    setGateMsg(`PIN errato. Ancora ${CFG.MAX_TRY - n} tentativ${CFG.MAX_TRY - n === 1 ? 'o' : 'i'}.`, true);
+  } catch (e) {
+    pin = ''; drawDots(); setGateMsg('Connessione non riuscita: riprova.', true);
+  } finally { gateBusy = false; }
+}
+$('pad').addEventListener('click', e => {
+  const b = e.target.closest('button'); if (!b || gateBusy || lockedUntil()) return;
+  if (b.dataset.k === 'c') pin = ''; else if (b.dataset.k === 'b') pin = pin.slice(0, -1);
+  else if (pin.length < 4) pin += b.textContent.trim();
+  drawDots();
+  if (pin.length === 4) tryPin();
+});
+addEventListener('keydown', e => {
+  if ($('gate').hidden || gateBusy || lockedUntil()) return;
+  if (/^[0-9]$/.test(e.key) && pin.length < 4) { pin += e.key; drawDots(); if (pin.length === 4) tryPin(); }
+  else if (e.key === 'Backspace') { pin = pin.slice(0, -1); drawDots(); }
+});
+$('btn-exit').addEventListener('click', () => { ls.del(CFG.SESS_KEY); ls.del(CFG.CACHE_KEY); db = []; $('list').innerHTML = ''; closeModal(); showGate('Sei uscito. Inserisci il PIN per rientrare.'); });
+
+/* ---- modifiche locali in attesa che il CSV pubblicato si aggiorni (ritarda qualche minuto) ---- */
+function readMods() { try { return JSON.parse(ls.get(CFG.MOD_KEY) || '{}'); } catch (e) { return {}; } }
+function saveMod(p) {
+  const m = readMods(), now = Date.now();
+  m[p.sku] = { qty: p.qty, shelf: p.shelf, ts: now };
+  for (const k in m) if (now - m[k].ts > CFG.MOD_MIN * 60000) delete m[k];
+  ls.set(CFG.MOD_KEY, JSON.stringify(m));
+}
+function applyMods() {
+  const m = readMods(), now = Date.now();
+  for (const p of db) { const o = m[p.sku]; if (o && now - o.ts < CFG.MOD_MIN * 60000) { p.qty = o.qty; p.shelf = o.shelf; recalc(p); } }
+}
+function recalc(p) {
+  p.wFbm = p.q7fbm > 0 ? Math.max(0, p.qty) / p.q7fbm : (p.qty <= 0 && p.q30 > 0 ? 0 : Infinity);
+  p.stockTot = Math.max(0, p.qty) + Math.max(0, p.fbaQty) + Math.max(0, p.entr);
+  p.weeks = p.q7 > 0 ? p.stockTot / p.q7 : (p.stockTot <= 0 && (p.q30 > 0 || p.fba30 > 0) ? 0 : Infinity);
+  p.search = [p.sku, p.skuFba, p.asin, p.brand, p.cat, p.shelf, p.forn].join(' ').toLowerCase();
+}
+
+/* ---- scheda articolo: quantità e scaffale ---- */
+let qMode = 'IMPOSTA';
+function editFill(p) {
+  qMode = 'IMPOSTA'; [...$('q-mode').children].forEach(b => b.classList.toggle('on', b.dataset.m === qMode));
+  $('q-val').value = p.qty; $('s-val').value = p.shelf || '';
+  $('q-hint').textContent = ''; $('s-hint').textContent = ''; $('q-hint').className = 'hint'; $('s-hint').className = 'hint';
+  qHint();
+}
+function qHint() {
+  if (!cur) return;
+  const v = parseInt($('q-val').value, 10);
+  let t = '';
+  if (qMode === 'IMPOSTA') t = isNaN(v) ? 'Scrivi quanti pezzi hai contato' : (v === cur.qty ? 'Uguale al foglio' : `Da ${fmt(cur.qty)} a ${fmt(v)} (${v - cur.qty > 0 ? '+' : ''}${fmt(v - cur.qty)})`);
+  else t = isNaN(v) || v <= 0 ? 'Quanti pezzi sono stati venduti?' : `Tolgo ${fmt(v)} pz: da ${fmt(cur.qty)} a ${fmt(cur.qty - v)} · registrata come vendita`;
+  $('q-hint').className = 'hint'; $('q-hint').textContent = t;
+}
+$('q-mode').addEventListener('click', e => {
+  const b = e.target.closest('button'); if (!b || !cur) return;
+  qMode = b.dataset.m; [...$('q-mode').children].forEach(x => x.classList.toggle('on', x === b));
+  $('q-val').value = qMode === 'IMPOSTA' ? cur.qty : 1; qHint();
+});
+$('q-minus').addEventListener('click', () => { const v = parseInt($('q-val').value, 10) || 0; $('q-val').value = Math.max(0, v - 1); qHint(); });
+$('q-plus').addEventListener('click', () => { const v = parseInt($('q-val').value, 10) || 0; $('q-val').value = v + 1; qHint(); });
+$('q-val').addEventListener('input', qHint);
+$('q-val').addEventListener('focus', () => $('q-val').select());
+$('q-val').addEventListener('keydown', e => { if (e.key === 'Enter') { $('q-val').blur(); $('q-save').click(); } });
+$('s-val').addEventListener('keydown', e => { if (e.key === 'Enter') { $('s-val').blur(); $('s-save').click(); } });
+
+async function sendEdit(body, btn, hint) {
+  const s = session();
+  if (!s) { kickOut('Sessione scaduta: rimetti il PIN.'); return null; }
+  btn.disabled = true; const lab = btn.textContent; btn.textContent = 'Salvo…';
+  try {
+    let r = await gas(Object.assign({ azione: 'modifica', gettone: s.gettone, riga: cur.row, asin: cur.asin, sku: cur.sku }, body));
+    if (r.scaduto) { kickOut('Sessione scaduta: rimetti il PIN.'); return null; }
+    if (!r.ok && r.conflitto) {
+      if (!confirm(r.errore + '\n\nVuoi salvare comunque il tuo valore?')) { hint.className = 'hint err'; hint.textContent = r.errore; return null; }
+      r = await gas(Object.assign({ azione: 'modifica', gettone: s.gettone, riga: cur.row, asin: cur.asin, sku: cur.sku, forza: true }, body));
+    }
+    if (!r.ok) { hint.className = 'hint err'; hint.textContent = r.errore || 'Salvataggio non riuscito.'; return null; }
+    return r;
+  } catch (e) {
+    hint.className = 'hint err'; hint.textContent = 'Connessione non riuscita: niente è stato salvato. Riprova.'; return null;
+  } finally { btn.disabled = false; btn.textContent = lab; }
+}
+function afterEdit(p, r) {
+  if (r.riga) p.row = r.riga;
+  if (r.qta !== undefined) p.qty = Number(r.qta) || 0;
+  if (r.scaffale !== undefined) p.shelf = String(r.scaffale || '').trim();
+  recalc(p); saveMod(p);
+  $('m-qty').textContent = fmt(p.qty); $('m-qty').style.color = p.qty <= 0 ? 'var(--red)' : '';
+  $('m-shelf').textContent = p.shelf || '—';
+  const y = scrollY; render(); scrollTo({ top: y });
+}
+$('q-save').addEventListener('click', async () => {
+  if (!cur) return;
+  const v = parseInt($('q-val').value, 10);
+  if (isNaN(v) || v < 0 || (qMode === 'VENDITA' && v === 0)) { $('q-hint').className = 'hint err'; $('q-hint').textContent = 'Numero non valido.'; return; }
+  if (qMode === 'IMPOSTA' && v === cur.qty) { $('q-hint').textContent = 'Nessuna modifica: il numero è uguale al foglio.'; return; }
+  if (qMode === 'VENDITA' && v > cur.qty) { $('q-hint').className = 'hint err'; $('q-hint').textContent = `Non puoi vendere ${v} pezzi: in magazzino ne risultano ${cur.qty}. Usa "Conta".`; return; }
+  const p = cur;
+  const r = await sendEdit({ campo: 'qta', tipo: qMode, quantita: v, atteso: p.qty }, $('q-save'), $('q-hint'));
+  if (!r) return;
+  afterEdit(p, r);
+  toast(qMode === 'VENDITA' ? `Vendita registrata: ${fmt(r.prima)} → ${fmt(r.dopo)}` : `Quantità salvata: ${fmt(r.prima)} → ${fmt(r.dopo)}`);
+  if (navigator.vibrate) navigator.vibrate(40);
+  if (cur === p) editFill(p);
+});
+$('s-save').addEventListener('click', async () => {
+  if (!cur) return;
+  const v = $('s-val').value.replace(/\s+/g, ' ').trim().toUpperCase();
+  if (v === (cur.shelf || '').toUpperCase()) { $('s-hint').textContent = 'Nessuna modifica.'; return; }
+  const p = cur;
+  const r = await sendEdit({ campo: 'scaffale', scaffale: v, atteso: p.shelf || '' }, $('s-save'), $('s-hint'));
+  if (!r) return;
+  afterEdit(p, r);
+  toast(`Scaffale salvato: ${r.dopo || 'vuoto'}`);
+  if (navigator.vibrate) navigator.vibrate(40);
+  if (cur === p) editFill(p);
+});
 
 init();
 </script>
