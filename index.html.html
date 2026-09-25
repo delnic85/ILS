@@ -386,7 +386,8 @@
             coda.forEach(v => scansioni.set(v.tracking, { ts: v.tsLocale || Date.now(), t: 'S', d: v.dispositivo, inAttesa: true }));
             aggiornaStatoSync();
 
-            loadAllData();
+            // i dati si caricano solo dopo il PIN (una volta al giorno, sessione condivisa con la pagina Magazzino)
+            ilsGate().then(() => { loadAllData(); searchBox.focus(); });
         });
 
         // ------------------------------------------------------------------
@@ -1240,88 +1241,12 @@
         // MODIFICA MAGAZZINO
         // ------------------------------------------------------------------
 
-        async function modificaScaffale(asin, currentScaffale, element) {
-            if (asin === 'N/D') {
-                alert("Impossibile modificare: ASIN mancante per questo articolo.");
-                return;
-            }
-
-            const conferma = confirm(`ATTENZIONE: Stai per modificare la posizione dello Scaffale nel magazzino centrale.\n\nVuoi procedere?`);
-            if (!conferma) return;
-
-            const nuovoScaffale = prompt("Inserisci il NUOVO SCAFFALE per questo prodotto:", currentScaffale);
-
-            if (nuovoScaffale !== null && nuovoScaffale.trim() !== "" && nuovoScaffale.trim() !== currentScaffale) {
-                const testoOriginale = element.innerText;
-                element.innerHTML = `<span class="text-sm font-medium opacity-80">Salvando...</span>`;
-                element.classList.add("pointer-events-none");
-
-                try {
-                    const response = await fetch(GAS_URL, {
-                        method: 'POST',
-                        redirect: 'follow',
-                        body: JSON.stringify({ asin: asin, scaffale: nuovoScaffale.trim().toUpperCase() })
-                    });
-
-                    const result = await response.json();
-
-                    if (result.success) {
-                        const newVal = nuovoScaffale.trim().toUpperCase();
-                        element.innerText = newVal;
-                        if (inventoryDataMap.has(asin)) inventoryDataMap.get(asin).scaffale = newVal;
-                    } else {
-                        throw new Error(result.error || "Errore sconosciuto durante il salvataggio.");
-                    }
-                } catch (error) {
-                    console.error(error);
-                    alert("Errore durante il salvataggio.\n\nDettaglio: " + error.message);
-                    element.innerText = testoOriginale;
-                } finally {
-                    element.classList.remove("pointer-events-none");
-                }
-            }
-        }
-
-        async function modificaQty(asin, currentQty, element) {
-            if (asin === 'N/D') {
-                alert("Impossibile modificare: ASIN mancante per questo articolo.");
-                return;
-            }
-
-            const conferma = confirm(`ATTENZIONE: Stai per modificare la QUANTITÀ RESIDUA nel magazzino centrale.\n\nVuoi procedere?`);
-            if (!conferma) return;
-
-            const nuovaQty = prompt("Inserisci la NUOVA QUANTITÀ per questo prodotto:", currentQty);
-
-            if (nuovaQty !== null && nuovaQty.trim() !== "" && nuovaQty.trim() !== currentQty) {
-                const testoOriginale = element.innerText;
-                element.innerHTML = `Salvando...`;
-                element.classList.add("pointer-events-none");
-
-                try {
-                    const response = await fetch(GAS_URL, {
-                        method: 'POST',
-                        redirect: 'follow',
-                        body: JSON.stringify({ asin: asin, qtyMag: nuovaQty.trim() })
-                    });
-
-                    const result = await response.json();
-
-                    if (result.success) {
-                        const newVal = nuovaQty.trim();
-                        element.innerText = "Qty rim: " + newVal;
-                        if (inventoryDataMap.has(asin)) inventoryDataMap.get(asin).qtyMag = newVal;
-                    } else {
-                        throw new Error(result.error || "Errore sconosciuto durante il salvataggio.");
-                    }
-                } catch (error) {
-                    console.error(error);
-                    alert("Errore durante il salvataggio.\n\nDettaglio: " + error.message);
-                    element.innerText = testoOriginale;
-                } finally {
-                    element.classList.remove("pointer-events-none");
-                }
-            }
+        // Dal 25/09/2026 la modifica passa dalla finestra con PIN (in fondo alla pagina): niente più
+        // confirm/prompt e niente modifiche senza accesso. Qui si ritrova il prodotto e si apre la finestra.
+        function apriModifica(el, campo) {
+            const asin = el.dataset.ilsAsin, sku = el.dataset.ilsSku;
+            const inv = inventoryDataMap.get(asin) || {};
+            ilsApriModifica({ asin, sku, brand: inv.brand, qtyMag: inv.qtyMag, scaffale: inv.scaffale }, el, campo);
         }
 
         // ------------------------------------------------------------------
@@ -1456,11 +1381,11 @@
                                     <p class="text-sm text-brand-orange font-bold break-all">${esc(item.sku)}</p>
                                     <div class="flex items-baseline gap-4 mt-1">
                                         <span class="text-gray-600 font-medium text-lg">${esc(item.brand)}</span>
-                                        <span class="${shelfSizeClass} font-black text-brand-orange leading-none cursor-pointer hover:opacity-70 transition-opacity" title="Clicca per modificare lo Scaffale" onclick="modificaScaffale('${esc(item.asin)}', '${esc(item.scaffale)}', this)">${esc(item.scaffale)}</span>
+                                        <span class="${shelfSizeClass} font-black text-brand-orange leading-none ils-edit" title="Clicca per modificare lo Scaffale" data-ils-asin="${esc(item.asin)}" data-ils-sku="${esc(item.sku)}" data-ils-campo="scaffale" onclick="apriModifica(this, 'scaffale')">${esc(item.scaffale)}</span>
                                     </div>
                                     <div class="mt-3 flex items-center gap-4">
                                         <div class="w-16 h-16 bg-brand-orange text-white text-3xl font-bold rounded-full flex items-center justify-center shadow-md">${item.qty}</div>
-                                        <span class="text-gray-600 font-medium text-lg cursor-pointer hover:opacity-70 transition-opacity" title="Clicca per modificare la quantità" onclick="modificaQty('${esc(item.asin)}', '${esc(item.qtyMag)}', this)">Qty rim: ${esc(item.qtyMag)}</span>
+                                        <span class="text-gray-600 font-medium text-lg ils-edit" title="Clicca per modificare la quantità" data-ils-asin="${esc(item.asin)}" data-ils-sku="${esc(item.sku)}" data-ils-campo="qta" onclick="apriModifica(this, 'qta')">Qty rim: ${esc(item.qtyMag)}</span>
                                     </div>
                                 </div>
                             </div>
@@ -1484,5 +1409,228 @@
             }
         }
     </script>
+<!-- ================= ACCESSO CON PIN + MODIFICA MAGAZZINO (25/09/2026) =================
+     Stesso accesso della pagina Magazzino (stesso sito → stessa sessione salvata nel browser):
+     il PIN si mette una volta al giorno (vale fino alle 04:00), anche chiudendo il browser. -->
+<style>
+#ils-gate *,#ils-ed *{box-sizing:border-box}
+#ils-ed button,#ils-gate button{border:0;cursor:pointer;font-family:inherit}
+.ils-pad button,.ils-step button{border:1px solid #e3e7e6!important}
+#ils-gate{position:fixed;inset:0;z-index:9999;background:#f2f4f3;display:flex;align-items:center;justify-content:center;padding:20px;font-family:Inter,system-ui,sans-serif}
+#ils-gate[hidden],#ils-ed[hidden],#ils-gate-lock[hidden]{display:none!important}
+.ils-box{width:100%;max-width:340px;text-align:center;color:#1f2626}
+.ils-logo{font-weight:800;font-size:20px;display:flex;align-items:center;justify-content:center;gap:8px}
+.ils-logo i{width:10px;height:10px;border-radius:50%;background:#FD991F;display:inline-block}
+.ils-msg{color:#8a9494;font-size:14px;min-height:40px;margin:8px 0 14px}
+.ils-msg.err{color:#d33f3f;font-weight:700}
+.ils-dots{display:flex;justify-content:center;gap:16px;margin-bottom:22px}
+.ils-dots i{width:16px;height:16px;border-radius:50%;border:2px solid #b9c1bf;display:block}
+.ils-dots i.on{background:#FD991F;border-color:#FD991F}
+.ils-dots.shake{animation:ilsshake .35s}
+@keyframes ilsshake{25%{transform:translateX(-8px)}50%{transform:translateX(8px)}75%{transform:translateX(-4px)}}
+.ils-pad{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
+.ils-pad button{height:64px;border-radius:16px;background:#fff;border:1px solid #e3e7e6;font-size:26px;font-weight:700;color:#1f2626}
+.ils-pad button:active{background:#fff1dc}
+.ils-pad button.g{background:none;border:0;font-size:15px;color:#8a9494}
+#ils-ed{position:fixed;inset:0;z-index:9000;background:rgba(0,0,0,.5);display:flex;align-items:flex-end;justify-content:center;font-family:Inter,system-ui,sans-serif}
+@media(min-width:768px){#ils-ed{align-items:center;padding:20px}}
+.ils-sheet{background:#fff;width:100%;max-width:480px;border-radius:20px 20px 0 0;padding:18px 18px calc(20px + env(safe-area-inset-bottom));position:relative;color:#1f2626;max-height:92vh;overflow:auto}
+@media(min-width:768px){.ils-sheet{border-radius:20px}}
+.ils-x{position:absolute;top:12px;right:12px;width:34px;height:34px;border-radius:50%;background:#eceeed;font-size:20px;line-height:1}
+.ils-sku{font-weight:900;color:#c97600;font-size:18px;padding-right:40px;word-break:break-all}
+.ils-sub{color:#8a9494;font-size:13px;margin-top:2px;padding-right:40px}
+.ils-h{margin:18px 0 8px;font-size:12px;color:#8a9494;text-transform:uppercase;letter-spacing:.05em;font-weight:700}
+.ils-step{display:grid;grid-template-columns:60px 1fr 60px;gap:8px}
+.ils-step button{height:60px;border-radius:14px;background:#f4f6f5;border:1px solid #e3e7e6;font-size:30px;font-weight:800}
+.ils-in{height:60px;width:100%;border:2px solid #e3e7e6;border-radius:14px;text-align:center;font-size:28px;font-weight:900;color:#1f2626;background:#fff;-moz-appearance:textfield}
+.ils-in::-webkit-outer-spin-button,.ils-in::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
+.ils-in.sh{text-transform:uppercase;color:#FD991F}
+.ils-in:focus{border-color:#FD991F;outline:0}
+.ils-hint{font-size:12px;color:#8a9494;margin:6px 2px 0;min-height:16px}
+.ils-hint.err{color:#d33f3f;font-weight:700}
+.ils-save{width:100%;margin-top:10px;height:54px;border-radius:14px;background:#FD991F;color:#fff;font-weight:800;font-size:16px}
+.ils-save:disabled{opacity:.5}
+.ils-toast{position:fixed;left:50%;bottom:24px;transform:translate(-50%,20px);background:#1f2626;color:#fff;padding:10px 16px;border-radius:999px;font-weight:700;font-size:14px;opacity:0;transition:.2s;z-index:10000;pointer-events:none;white-space:nowrap}
+.ils-toast.on{opacity:1;transform:translate(-50%,0)}
+.ils-edit{cursor:pointer;border-bottom:2px dashed transparent}
+.ils-edit:hover{border-bottom-color:currentColor}
+.ils-pend{opacity:.55}
+</style>
+
+<div id="ils-gate" hidden>
+  <div class="ils-box">
+    <div class="ils-logo"><i></i>Scannerizza Etichetta</div>
+    <div id="ils-gate-lock" style="font-size:48px;margin-top:8px" hidden>🔒</div>
+    <div class="ils-msg" id="ils-gate-msg">Inserisci il PIN</div>
+    <div class="ils-dots" id="ils-dots"><i></i><i></i><i></i><i></i></div>
+    <div class="ils-pad" id="ils-pad">
+      <button>1</button><button>2</button><button>3</button><button>4</button><button>5</button><button>6</button>
+      <button>7</button><button>8</button><button>9</button><button class="g" data-k="c">Cancella</button><button>0</button><button class="g" data-k="b">⌫</button>
+    </div>
+  </div>
+</div>
+
+<div id="ils-ed" hidden>
+  <div class="ils-sheet" role="dialog" aria-modal="true">
+    <button class="ils-x" id="ils-ed-x" aria-label="Chiudi">×</button>
+    <div class="ils-sku" id="ils-ed-sku"></div>
+    <div class="ils-sub" id="ils-ed-sub"></div>
+    <div class="ils-h">Quantità in magazzino (conta)</div>
+    <div class="ils-step"><button id="ils-q-m" aria-label="Meno uno">−</button><input class="ils-in" id="ils-q" type="number" inputmode="numeric" min="0" step="1"><button id="ils-q-p" aria-label="Più uno">+</button></div>
+    <div class="ils-hint" id="ils-q-h"></div>
+    <button class="ils-save" id="ils-q-s">Salva quantità</button>
+    <div class="ils-h">Scaffale</div>
+    <input class="ils-in sh" id="ils-s" type="text" autocomplete="off" autocapitalize="characters" spellcheck="false" maxlength="60">
+    <div class="ils-hint" id="ils-s-h"></div>
+    <button class="ils-save" id="ils-s-s">Salva scaffale</button>
+  </div>
+</div>
+<div class="ils-toast" id="ils-toast"></div>
+
+<script>
+(function () {
+  const K = { SESS: 'ils_mag_sess', LOCK: 'ils_mag_lock', TRY: 'ils_mag_try', DEV: 'ils_mag_dev' }, MAX_TRY = 3, LOCK_MIN = 30;
+  const $ = id => document.getElementById(id);
+  const ls = { get(k) { try { return localStorage.getItem(k); } catch (e) { return null; } }, set(k, v) { try { localStorage.setItem(k, v); } catch (e) {} }, del(k) { try { localStorage.removeItem(k); } catch (e) {} } };
+  const device = () => { let d = ls.get(K.DEV); if (!d) { d = 'tel-' + Math.random().toString(36).slice(2, 10); ls.set(K.DEV, d); } return d; };
+  const session = () => { try { const s = JSON.parse(ls.get(K.SESS) || 'null'); return s && s.scade > Date.now() ? s : null; } catch (e) { return null; } };
+  const lockedUntil = () => { const u = +(ls.get(K.LOCK) || 0); return u > Date.now() ? u : 0; };
+  let toastT;
+  const toast = m => { const t = $('ils-toast'); t.textContent = m; t.classList.add('on'); clearTimeout(toastT); toastT = setTimeout(() => t.classList.remove('on'), 2200); };
+
+  // chiamata allo script con 3 tentativi; "rid" = lo script non ripete una modifica già fatta
+  async function gas(body) {
+    const payload = JSON.stringify(Object.assign({ app: 'magazzino', dispositivo: device(), rid: Date.now().toString(36) + Math.random().toString(36).slice(2, 8) }, body));
+    let last;
+    for (let i = 0; i < 3; i++) {
+      if (i) await new Promise(r => setTimeout(r, i * 1500));
+      const ctl = new AbortController(), t = setTimeout(() => ctl.abort(), 25000);
+      try { const r = await fetch(GAS_URL, { method: 'POST', redirect: 'follow', body: payload, signal: ctl.signal }); if (!r.ok) throw new Error('HTTP ' + r.status); return JSON.parse(await r.text()); }
+      catch (e) { last = e; } finally { clearTimeout(t); }
+    }
+    throw last;
+  }
+
+  /* ---------------- PIN ---------------- */
+  let pin = '', busy = false, resolveGate = null;
+  const msg = (h, err) => { $('ils-gate-msg').innerHTML = h; $('ils-gate-msg').classList.toggle('err', !!err); };
+  const dots = () => [...$('ils-dots').children].forEach((d, i) => d.classList.toggle('on', i < pin.length));
+  function showGate(m, err) {
+    $('ils-gate').hidden = false;
+    const lu = lockedUntil();
+    $('ils-gate-lock').hidden = !lu; $('ils-pad').style.visibility = lu ? 'hidden' : ''; $('ils-dots').style.visibility = lu ? 'hidden' : '';
+    if (lu) { const n = Math.ceil((lu - Date.now()) / 60000); msg(`Troppi PIN sbagliati.<br>Bloccato per ${n} minut${n === 1 ? 'o' : 'i'}.`, true); setTimeout(() => showGate(), Math.min(60000, lu - Date.now() + 500)); return; }
+    pin = ''; dots(); msg(m || 'Inserisci il PIN', err);
+  }
+  async function tryPin() {
+    busy = true; msg('Controllo…');
+    try {
+      const r = await gas({ azione: 'login', pin });
+      if (r.ok) {
+        ls.set(K.SESS, JSON.stringify({ gettone: r.gettone, scade: r.scade })); ls.del(K.TRY);
+        $('ils-gate').hidden = true;
+        if (resolveGate) { const f = resolveGate; resolveGate = null; f(); }
+        const sb = document.getElementById('search-box'); if (sb) sb.focus();
+        return;
+      }
+      const n = +(ls.get(K.TRY) || 0) + 1; ls.set(K.TRY, String(n));
+      if (r.bloccato || n >= MAX_TRY) { ls.set(K.LOCK, String(Date.now() + LOCK_MIN * 60000)); ls.del(K.TRY); ls.del(K.SESS); showGate(); return; }
+      $('ils-dots').classList.remove('shake'); void $('ils-dots').offsetWidth; $('ils-dots').classList.add('shake');
+      pin = ''; dots(); msg(`PIN errato. Ancora ${MAX_TRY - n} tentativ${MAX_TRY - n === 1 ? 'o' : 'i'}.`, true);
+    } catch (e) { pin = ''; dots(); msg('Connessione non riuscita: riprova.', true); }
+    finally { busy = false; }
+  }
+  const add = c => { if (busy || lockedUntil()) return; if (c === 'c') pin = ''; else if (c === 'b') pin = pin.slice(0, -1); else if (pin.length < 4) pin += c; dots(); if (pin.length === 4) tryPin(); };
+  $('ils-pad').addEventListener('click', e => { const b = e.target.closest('button'); if (b) add(b.dataset.k || b.textContent.trim()); });
+  // con la schermata PIN aperta i tasti vanno al PIN, non al campo dello scanner
+  document.addEventListener('keydown', e => {
+    if ($('ils-gate').hidden) return;
+    e.preventDefault(); e.stopImmediatePropagation();
+    if (/^[0-9]$/.test(e.key)) add(e.key); else if (e.key === 'Backspace') add('b');
+  }, true);
+  window.ilsGate = () => (session() && !lockedUntil()) ? Promise.resolve() : new Promise(res => { resolveGate = res; showGate(); });
+  document.addEventListener('visibilitychange', () => { if (!document.hidden && !session() && $('ils-gate').hidden) showGate('Sessione scaduta: rimetti il PIN.'); });
+
+  /* ---------------- modifica quantità / scaffale ---------------- */
+  let cur = null;
+  const qHint = () => {
+    const v = parseInt($('ils-q').value, 10), q = cur ? Number(cur.qty) : NaN;
+    $('ils-q-h').className = 'ils-hint';
+    $('ils-q-h').textContent = isNaN(v) ? 'Scrivi quanti pezzi hai contato' : (isNaN(q) ? '' : v === q ? 'Uguale al foglio' : `Da ${q} a ${v} (${v - q > 0 ? '+' : ''}${v - q})`);
+  };
+  window.ilsApriModifica = function (item, el, campo) {
+    if (!item.asin || item.asin === 'N/D') { toast('ASIN mancante: non modificabile da qui'); return; }
+    if (!session()) { showGate('Sessione scaduta: rimetti il PIN.'); return; }
+    const inv = (typeof inventoryDataMap !== 'undefined' && inventoryDataMap.get(item.asin)) || {};
+    cur = { asin: item.asin, sku: item.sku, qty: parseInt(inv.qtyMag ?? item.qtyMag, 10), shelf: String(inv.scaffale ?? item.scaffale ?? '').replace(/^N\/D$/, ''), el };
+    $('ils-ed-sku').textContent = item.sku || item.asin;
+    $('ils-ed-sub').textContent = [item.brand && item.brand !== 'N/D' ? item.brand : '', 'ASIN ' + item.asin].filter(Boolean).join(' · ');
+    $('ils-q').value = isNaN(cur.qty) ? '' : cur.qty; $('ils-s').value = cur.shelf;
+    $('ils-s-h').textContent = ''; $('ils-s-h').className = 'ils-hint'; qHint();
+    $('ils-ed').hidden = false;
+    setTimeout(() => { const f = campo === 'scaffale' ? $('ils-s') : $('ils-q'); f.focus(); f.select(); }, 60);
+  };
+  const chiudi = () => { $('ils-ed').hidden = true; cur = null; const sb = document.getElementById('search-box'); if (sb) setTimeout(() => sb.focus(), 30); };
+  $('ils-ed-x').addEventListener('click', chiudi);
+  $('ils-ed').addEventListener('click', e => { if (e.target === $('ils-ed')) chiudi(); });
+  // i tasti dentro la finestra non vanno al campo dello scanner
+  document.addEventListener('keydown', e => {
+    if ($('ils-ed').hidden) return;
+    if (e.key === 'Escape') { chiudi(); e.preventDefault(); }
+    e.stopImmediatePropagation();
+    if (e.key === 'Enter') { e.preventDefault(); if (document.activeElement === $('ils-s')) $('ils-s-s').click(); else $('ils-q-s').click(); }
+  }, true);
+  $('ils-q').addEventListener('input', qHint);
+  $('ils-q-m').addEventListener('click', () => { $('ils-q').value = Math.max(0, (parseInt($('ils-q').value, 10) || 0) - 1); qHint(); });
+  $('ils-q-p').addEventListener('click', () => { $('ils-q').value = (parseInt($('ils-q').value, 10) || 0) + 1; qHint(); });
+
+  async function salva(body, btn, hint) {
+    const s = session(); if (!s) { chiudi(); showGate('Sessione scaduta: rimetti il PIN.'); return null; }
+    btn.disabled = true; const lab = btn.textContent; btn.textContent = 'Salvo…';
+    try {
+      let r = await gas(Object.assign({ azione: 'modifica', gettone: s.gettone, riga: 0, asin: cur.asin, sku: cur.sku }, body));
+      if (r.scaduto) { ls.del(K.SESS); chiudi(); showGate('Sessione scaduta: rimetti il PIN.'); return null; }
+      if (!r.ok && r.conflitto) {
+        if (!confirm(r.errore + '\n\nVuoi salvare comunque il tuo valore?')) { hint.className = 'ils-hint err'; hint.textContent = r.errore; return null; }
+        r = await gas(Object.assign({ azione: 'modifica', gettone: s.gettone, riga: 0, asin: cur.asin, sku: cur.sku, forza: true }, body));
+      }
+      if (!r.ok) { hint.className = 'ils-hint err'; hint.textContent = r.errore || 'Salvataggio non riuscito.'; return null; }
+      return r;
+    } catch (e) { hint.className = 'ils-hint err'; hint.textContent = 'Connessione non riuscita: niente è stato salvato. Riprova.'; return null; }
+    finally { btn.disabled = false; btn.textContent = lab; }
+  }
+  function aggiorna(r) {
+    const asin = cur.asin;
+    if (typeof inventoryDataMap !== 'undefined' && inventoryDataMap.has(asin)) {
+      const inv = inventoryDataMap.get(asin);
+      if (r.qta !== undefined) inv.qtyMag = String(r.qta);
+      if (r.scaffale !== undefined) inv.scaffale = String(r.scaffale || 'N/D');
+    }
+    // aggiorna a video tutte le schede aperte dello stesso prodotto
+    document.querySelectorAll(`[data-ils-asin="${CSS.escape(asin)}"]`).forEach(el => {
+      if (el.dataset.ilsCampo === 'qta' && r.qta !== undefined) el.textContent = 'Qty rim: ' + r.qta;
+      if (el.dataset.ilsCampo === 'scaffale' && r.scaffale !== undefined) el.textContent = r.scaffale || 'N/D';
+    });
+  }
+  $('ils-q-s').addEventListener('click', async () => {
+    if (!cur) return;
+    const v = parseInt($('ils-q').value, 10);
+    if (isNaN(v) || v < 0) { $('ils-q-h').className = 'ils-hint err'; $('ils-q-h').textContent = 'Numero non valido.'; return; }
+    if (v === cur.qty) { $('ils-q-h').textContent = 'Nessuna modifica.'; return; }
+    const r = await salva({ campo: 'qta', tipo: 'IMPOSTA', quantita: v, atteso: isNaN(cur.qty) ? '' : cur.qty }, $('ils-q-s'), $('ils-q-h'));
+    if (!r) return;
+    aggiorna(r); toast(`Quantità salvata: ${r.prima} → ${r.dopo}`); chiudi();
+  });
+  $('ils-s-s').addEventListener('click', async () => {
+    if (!cur) return;
+    const v = $('ils-s').value.replace(/\s+/g, ' ').trim().toUpperCase();
+    if (v === cur.shelf.toUpperCase()) { $('ils-s-h').textContent = 'Nessuna modifica.'; return; }
+    const r = await salva({ campo: 'scaffale', scaffale: v, atteso: cur.shelf }, $('ils-s-s'), $('ils-s-h'));
+    if (!r) return;
+    aggiorna(r); toast(`Scaffale salvato: ${r.dopo || 'vuoto'}`); chiudi();
+  });
+})();
+</script>
+
 </body>
 </html>
