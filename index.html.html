@@ -603,7 +603,11 @@
             };
 
             if (nome === 'AMAZON') return { ...MAP_AMAZON, ...stati, origine: 'fisso AMAZON' };
-            if (nome === 'TIKTOK') return { ...MAP_TIKTOK, ...stati, origine: 'fisso TIKTOK' };
+            // TIKTOK: dal 01/10/2026 la scheda e' scritta dalle API con lo stesso tracciato di AMAZON
+            // (A1 = "ID Ordine"); l'export del Seller Center (A1 = "Order ID") usa ancora MAP_TIKTOK.
+            if (nome === 'TIKTOK') return (h[0] === 'id ordine')
+                ? { ...MAP_AMAZON, ...stati, origine: 'fisso TIKTOK (tracciato API = AMAZON)' }
+                : { ...MAP_TIKTOK, ...stati, origine: 'fisso TIKTOK (export Seller Center)' };
             if (nome === 'SHOPIFY') return { ...MAP_SHOPIFY, ...stati, origine: 'fisso SHOPIFY' };
             const base = header.length >= 50 ? MAP_NEW : MAP_OLD;
 
